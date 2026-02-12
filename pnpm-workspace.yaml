@@ -1,3 +1,7 @@
 packages:
   - 'app/*'
   - 'packages/*'
+
+catalog:
+  tsup: ^8.4.0
+  typescript: ^5.7.3
