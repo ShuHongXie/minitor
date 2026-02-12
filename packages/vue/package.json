@@ -26,8 +26,13 @@
     "build": "tsup",
     "dev": "tsup --watch"
   },
+  "dependencies": {
+    "@minitrack/core": "workspace:*"
+  },
   "devDependencies": {
     "tsup": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vue": "^3.5.28",
+    "vue-router": "^5.0.2"
   }
 }
