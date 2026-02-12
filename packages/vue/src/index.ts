@@ -2,10 +2,11 @@ import type { App, Plugin } from 'vue';
 import type { Router, RouteLocationNormalized } from 'vue-router';
 import {
   initErrorMonitor,
-  sendErrorData,
+  sendData,
   formatErrorMessage,
   extractFirstErrorFile,
   ErrorType,
+  ReportType,
   initVitalsCollection,
   currentPage,
   resetReportedMetrics,
@@ -39,8 +40,9 @@ export const VueErrorMonitorPlugin = {
       const e = err as any;
       const stack = e && e.stack ? e.stack : null;
 
-      sendErrorData(
+      sendData(
         {
+          type: ReportType.ERROR,
           message: formatErrorMessage(err),
           stack,
           errorFilename: extractFirstErrorFile(stack),

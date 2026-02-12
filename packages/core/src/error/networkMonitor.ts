@@ -1,4 +1,5 @@
-import { sendErrorData } from './sender';
+import { sendData } from '../sender';
+import { ReportType } from '../reportType';
 import { ErrorType } from './type';
 
 /**
@@ -22,6 +23,7 @@ export const monitorNetworkErrors = (
     }
     this.addEventListener('error', () => {
       const errorInfo = {
+        type: ReportType.ERROR,
         message: `Network Error: ${method} ${url}`,
         projectName,
         environment,
@@ -30,7 +32,7 @@ export const monitorNetworkErrors = (
         userAgent: navigator.userAgent,
       };
       console.log('network error', errorInfo);
-      sendErrorData(errorInfo, reportUrl);
+      sendData(errorInfo, reportUrl);
     });
     return originalXhrOpen.apply(this, [method, url, ...args] as any);
   };
@@ -45,6 +47,7 @@ export const monitorNetworkErrors = (
       const response = await originalFetch(input, init);
       if (!response.ok) {
         const errorInfo = {
+          type: ReportType.ERROR,
           message: `Network Error: ${response.status} ${response.statusText}`,
           url: input instanceof Request ? input.url : input,
           projectName,
@@ -54,11 +57,12 @@ export const monitorNetworkErrors = (
           userAgent: navigator.userAgent,
         };
         console.log('fetch error', errorInfo);
-        sendErrorData(errorInfo, reportUrl);
+        sendData(errorInfo, reportUrl);
       }
       return response;
     } catch (error) {
       const errorInfo = {
+        type: ReportType.ERROR,
         message: `Fetch failed: ${input instanceof Request ? input.url : input}`,
         projectName,
         environment,
@@ -66,7 +70,7 @@ export const monitorNetworkErrors = (
         timestamp: new Date().toISOString(),
         userAgent: navigator.userAgent,
       };
-      sendErrorData(errorInfo, reportUrl);
+      sendData(errorInfo, reportUrl);
       throw error;
     }
   };

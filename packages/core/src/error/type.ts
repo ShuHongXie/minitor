@@ -31,4 +31,9 @@ export enum ErrorType {
    * Vue 组件错误
    */
   VUE_ERROR = 6,
+
+  /**
+   * React 组件错误
+   */
+  REACT_ERROR = 7,
 }

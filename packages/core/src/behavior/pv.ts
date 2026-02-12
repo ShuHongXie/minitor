@@ -1,4 +1,5 @@
 import { ReportType } from '../reportType';
+import { sendRawData } from '../sender';
 
 /**
  * PV 上报数据结构
@@ -48,8 +49,6 @@ export interface PVMonitorConfig {
   environment: string;
   /** 用户 ID 获取函数 */
   getUserId?: () => string | null | undefined;
-  /** 自定义上报函数（覆盖默认上报） */
-  customReporter?: (data: PVReportData) => void;
 }
 
 // ===================== 内部状态 =====================
@@ -98,65 +97,34 @@ function buildPVData(duration: number = 0): PVReportData {
 }
 
 /**
- * 发送 PV 数据
- */
-function sendPVData(data: PVReportData): void {
-  if (!pvConfig) return;
-
-  // 自定义上报
-  if (pvConfig.customReporter) {
-    pvConfig.customReporter(data);
-    return;
-  }
-
-  // 默认上报：sendBeacon 优先
-  const jsonData = JSON.stringify(data);
-
-  if (navigator.sendBeacon) {
-    const blob = new Blob([jsonData], { type: 'application/json' });
-    const success = navigator.sendBeacon(pvConfig.reportUrl, blob);
-    if (success) return;
-  }
-
-  if (typeof fetch !== 'undefined') {
-    fetch(pvConfig.reportUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: jsonData,
-      keepalive: true,
-    }).catch((err) => console.error('[PV上报] 失败:', err));
-  }
-}
-
-/**
  * 记录页面进入
  */
 function recordPageEnter(): void {
+  if (!pvConfig) return;
   pageEnterTime = Date.now();
   currentUrl = window.location.href;
 
   const data = buildPVData(0);
   console.log('[PV] 页面进入', data);
-  sendPVData(data);
+  sendRawData(data, pvConfig.reportUrl);
 }
 
 /**
  * 记录页面离开（上报停留时长）
  */
 function recordPageLeave(): void {
-  if (!pageEnterTime) return;
+  if (!pvConfig || !pageEnterTime) return;
 
   const duration = Date.now() - pageEnterTime;
   const data = buildPVData(duration);
   console.log('[PV] 页面离开，停留时长:', duration, 'ms');
-  sendPVData(data);
+  sendData(data, pvConfig.reportUrl);
 }
 
 /**
  * SPA 路由变化监听（拦截 pushState / replaceState / popstate）
  */
 function listenSPARouteChange(): void {
-  // 拦截 history.pushState
   const originalPushState = history.pushState;
   history.pushState = function (...args) {
     recordPageLeave();
@@ -164,7 +132,6 @@ function listenSPARouteChange(): void {
     recordPageEnter();
   };
 
-  // 拦截 history.replaceState
   const originalReplaceState = history.replaceState;
   history.replaceState = function (...args) {
     recordPageLeave();
@@ -172,13 +139,11 @@ function listenSPARouteChange(): void {
     recordPageEnter();
   };
 
-  // 监听浏览器前进/后退
   window.addEventListener('popstate', () => {
     recordPageLeave();
     recordPageEnter();
   });
 
-  // 监听 hash 变化
   window.addEventListener('hashchange', () => {
     if (window.location.href !== currentUrl) {
       recordPageLeave();
@@ -203,20 +168,16 @@ export function initPVMonitor(config: PVMonitorConfig): void {
 
   pvConfig = config;
 
-  // 首屏 PV
   recordPageEnter();
 
-  // SPA 路由监听
   listenSPARouteChange();
 
-  // 页面隐藏时上报（移动端切后台）
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
       recordPageLeave();
     }
   });
 
-  // 页面卸载兜底
   window.addEventListener('beforeunload', () => {
     recordPageLeave();
   });

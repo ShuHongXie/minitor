@@ -2,7 +2,6 @@ import { monitorJavaScriptErrors } from './errorHandler';
 import { monitorNetworkErrors } from './networkMonitor';
 import { monitorResourceErrors } from './resourceMonitor';
 
-export { sendErrorData } from './sender';
 export {
   formatErrorMessage,
   extractFirstErrorFile,

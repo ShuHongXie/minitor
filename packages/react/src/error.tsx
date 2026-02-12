@@ -1,9 +1,11 @@
 import React from 'react';
 import {
   initErrorMonitor,
-  sendErrorData,
+  sendData,
   formatErrorMessage,
   extractFirstErrorFile,
+  ReportType,
+  ErrorType,
 } from '@minitrack/core';
 import type { ErrorMonitorConfig } from '@minitrack/core';
 
@@ -55,14 +57,15 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
     const { options } = this.props;
     const stack = error.stack || null;
 
-    sendErrorData(
+    sendData(
       {
+        type: ReportType.ERROR,
         message: formatErrorMessage(error),
         stack,
         errorFilename: extractFirstErrorFile(stack),
         projectName: options.projectName,
         environment: options.environment,
-        errorType: 'React Error',
+        errorType: ErrorType.REACT_ERROR,
         componentStack: errorInfo.componentStack,
         timestamp: new Date().toISOString(),
         userAgent: navigator.userAgent,

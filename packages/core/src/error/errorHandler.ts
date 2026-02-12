@@ -1,4 +1,5 @@
-import { sendErrorData } from './sender';
+import { sendData } from '../sender';
+import { ReportType } from '../reportType';
 import { ErrorType } from './type';
 import { extractFirstErrorFile } from './utils';
 
@@ -25,6 +26,7 @@ export const monitorJavaScriptErrors = (
     console.log('javascript error', message, source, lineno, colno, error);
     const stack = error ? error.stack : null;
     const errorInfo = {
+      type: ReportType.ERROR,
       message,
       source,
       lineno,
@@ -39,7 +41,7 @@ export const monitorJavaScriptErrors = (
     };
     console.log('javascript error', errorInfo);
 
-    sendErrorData(errorInfo, reportUrl);
+    sendData(errorInfo, reportUrl);
 
     if (originalOnError) {
       return originalOnError(message, source, lineno, colno, error);
@@ -52,6 +54,7 @@ export const monitorJavaScriptErrors = (
     const reason = (event as any).reason;
     const stack = reason && reason.stack ? reason.stack : null;
     const errorInfo = {
+      type: ReportType.ERROR,
       message: reason ? reason.message || String(reason) : 'Unknown Promise Error',
       stack,
       errorFilename: extractFirstErrorFile(stack),
@@ -63,7 +66,7 @@ export const monitorJavaScriptErrors = (
     };
     console.log('unhandledrejection-1', errorInfo, reason);
 
-    sendErrorData(errorInfo, reportUrl);
+    sendData(errorInfo, reportUrl);
 
     if (originalOnUnhandledRejection) {
       return originalOnUnhandledRejection.call(window, event);

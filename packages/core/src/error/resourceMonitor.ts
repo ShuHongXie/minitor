@@ -1,4 +1,5 @@
-import { sendErrorData } from './sender';
+import { sendData } from '../sender';
+import { ReportType } from '../reportType';
 import { ErrorType } from './type';
 
 /**
@@ -20,6 +21,7 @@ export const monitorResourceErrors = (
       const target = event.target as HTMLElement;
       if (target && (target.tagName === 'IMG' || target.tagName === 'SCRIPT')) {
         const errorInfo = {
+          type: ReportType.ERROR,
           message: `Resource Load Error: ${target.tagName} ${target.getAttribute('src') || target.getAttribute('href')}`,
           projectName,
           environment,
@@ -28,7 +30,7 @@ export const monitorResourceErrors = (
           userAgent: navigator.userAgent,
         };
         console.log('静态资源错误', errorInfo);
-        sendErrorData(errorInfo, reportUrl);
+        sendData(errorInfo, reportUrl);
       }
     },
     true,

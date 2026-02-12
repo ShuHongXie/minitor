@@ -1,5 +1,4 @@
-import { getBrowserInfo, generateErrorKey } from './utils';
-import { ReportType } from '../reportType';
+import { getBrowserInfo, generateErrorKey } from './error/utils';
 
 interface ThrottleConfig {
   windowTime: number;
@@ -12,7 +11,7 @@ interface BatchConfig {
   timeout: number;
 }
 
-interface ErrorCacheItem {
+interface CacheItem {
   timestamp: number;
 }
 
@@ -31,10 +30,10 @@ const CONFIG = {
   } as BatchConfig,
 };
 
-const errorCache = new Map<string, ErrorCacheItem>();
+const dataCache = new Map<string, CacheItem>();
 let throttleCount = 0;
 let throttleTimer: ReturnType<typeof setTimeout> | null = null;
-const errorBatchQueue: Record<string, any>[] = [];
+const batchQueue: Record<string, any>[] = [];
 let batchTimer: ReturnType<typeof setTimeout> | null = null;
 let isUnloading = false;
 
@@ -47,12 +46,10 @@ if (typeof window !== 'undefined') {
  */
 function onBeforeUnload(): void {
   isUnloading = true;
-  if (errorBatchQueue.length > 0) {
-    const errorsToSend = [...errorBatchQueue];
-    errorBatchQueue.length = 0;
-    // 页面卸载时用最后一个错误的 url 作为上报地址
-    // 实际场景中 url 应保持一致
-    sendBatchErrorData(errorsToSend, lastReportUrl);
+  if (batchQueue.length > 0) {
+    const dataToSend = [...batchQueue];
+    batchQueue.length = 0;
+    sendBatchData(dataToSend, lastReportUrl);
   }
   cleanupTimers();
 }
@@ -66,33 +63,32 @@ function cleanupTimers(): void {
     clearTimeout(batchTimer);
     batchTimer = null;
   }
-  errorBatchQueue.length = 0;
-  errorCache.clear();
+  batchQueue.length = 0;
+  dataCache.clear();
 }
 
 let lastReportUrl = '';
 
 function cleanExpiredCache(): void {
   const now = Date.now();
-  for (const [key, item] of errorCache.entries()) {
+  for (const [key, item] of dataCache.entries()) {
     if (now - item.timestamp > CONFIG.cacheExpire) {
-      errorCache.delete(key);
+      dataCache.delete(key);
     }
   }
 }
 
-function updateErrorCache(errorData: Record<string, any>): void {
-  const key = generateErrorKey(errorData);
-  errorCache.set(key, { timestamp: Date.now() });
+function updateCache(data: Record<string, any>): void {
+  const key = generateErrorKey(data);
+  dataCache.set(key, { timestamp: Date.now() });
 }
 
-function filterInvalidError(errorData: Record<string, any>): boolean {
-  const message = errorData.message || '';
+function filterInvalidData(data: Record<string, any>): boolean {
+  const message = data.message || '';
   if (message.includes('Script error.')) return false;
   if (
-    errorData.fileName &&
-    (errorData.fileName.includes('baidu.com') ||
-      errorData.fileName.includes('google-analytics.com'))
+    data.fileName &&
+    (data.fileName.includes('baidu.com') || data.fileName.includes('google-analytics.com'))
   ) {
     return false;
   }
@@ -104,15 +100,15 @@ function filterInvalidError(errorData: Record<string, any>): boolean {
   return true;
 }
 
-function isDuplicateError(errorData: Record<string, any>): boolean {
-  const key = generateErrorKey(errorData);
-  const cacheItem = errorCache.get(key);
+function isDuplicate(data: Record<string, any>): boolean {
+  const key = generateErrorKey(data);
+  const cacheItem = dataCache.get(key);
   cleanExpiredCache();
   return !!(cacheItem && Date.now() - cacheItem.timestamp < CONFIG.cacheExpire);
 }
 
-function checkThrottle(errorData: Record<string, any>): boolean {
-  const message = errorData.message || '';
+function checkThrottle(data: Record<string, any>): boolean {
+  const message = data.message || '';
   const isCritical = CONFIG.throttle.criticalErrors.some((keyword) => message.includes(keyword));
   if (isCritical) return true;
 
@@ -124,10 +120,7 @@ function checkThrottle(errorData: Record<string, any>): boolean {
   }
 
   if (throttleCount >= CONFIG.throttle.maxCount) {
-    console.warn(
-      `[错误上报节流] 5秒内已上报${CONFIG.throttle.maxCount}条，本次拦截`,
-      errorData.message,
-    );
+    console.warn(`[上报节流] 5秒内已上报${CONFIG.throttle.maxCount}条，本次拦截`, data.message);
     return false;
   }
 
@@ -135,8 +128,8 @@ function checkThrottle(errorData: Record<string, any>): boolean {
   return true;
 }
 
-function checkSample(errorData: Record<string, any>): boolean {
-  const message = errorData.message || '';
+function checkSample(data: Record<string, any>): boolean {
+  const message = data.message || '';
   const isCritical = CONFIG.throttle.criticalErrors.some((keyword) => message.includes(keyword));
   if (isCritical) return true;
   const randomRate = Math.random();
@@ -160,18 +153,15 @@ function sendViaImage(url: string, data: string): void {
 /**
  * 渐进降级发送：sendBeacon → fetch → Image
  */
-function sendBatchErrorData(errors: Record<string, any>[], url: string): void {
-  if (errors.length === 0) return;
+function sendBatchData(items: Record<string, any>[], url: string): void {
+  if (items.length === 0) return;
 
-  console.log('[批量上报] 发送错误数据', errors);
+  console.log('[批量上报] 发送数据', items);
   const browserInfo = getBrowserInfo();
-  const dataToSend = errors.map((error) => {
-    return {
-      ...error,
-      ...browserInfo,
-      type: ReportType.ERROR,
-    };
-  });
+  const dataToSend = items.map((item) => ({
+    ...item,
+    ...browserInfo,
+  }));
 
   const jsonData = JSON.stringify(dataToSend);
 
@@ -199,11 +189,45 @@ function sendBatchErrorData(errors: Record<string, any>[], url: string): void {
 }
 
 /**
+ * 纯传输层：直接发送单条数据（不走去重/节流/采样/批量队列）
+ * 适用于 PV、自定义事件等不需要错误过滤逻辑的场景
+ *
+ * 降级策略：sendBeacon → fetch → Image
+ *
+ * @param data 上报数据
+ * @param url 上报接口地址
+ */
+export const sendRawData = (data: Record<string, any>, url: string): void => {
+  const browserInfo = getBrowserInfo();
+  const dataToSend = { ...data, ...browserInfo };
+  const jsonData = JSON.stringify(dataToSend);
+
+  if (navigator.sendBeacon) {
+    const blob = new Blob([jsonData], { type: 'application/json' });
+    const success = navigator.sendBeacon(url, blob);
+    if (success) return;
+  }
+
+  if (typeof fetch !== 'undefined') {
+    fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: jsonData,
+      keepalive: true,
+    }).catch(() => {
+      sendViaImage(url, jsonData);
+    });
+    return;
+  }
+
+  sendViaImage(url, jsonData);
+};
+
+/**
  * 使用 requestIdleCallback 在浏览器空闲时执行回调
  * 不支持时降级为 setTimeout(_, 0)
  */
 function scheduleIdleReport(callback: () => void): void {
-  // 页面卸载时跳过空闲调度，直接执行
   if (isUnloading) {
     callback();
     return;
@@ -215,34 +239,31 @@ function scheduleIdleReport(callback: () => void): void {
         if (deadline.timeRemaining() > 0 || deadline.didTimeout) {
           callback();
         } else {
-          // 空闲时间不足，下一次空闲再执行
           scheduleIdleReport(callback);
         }
       },
-      { timeout: 3000 }, // 最多延迟 3 秒
+      { timeout: 3000 },
     );
   } else {
-    // 降级：下一个宏任务执行
     setTimeout(callback, 0);
   }
 }
 
 function triggerBatchReport(url: string): void {
-  if (errorBatchQueue.length === 0) return;
-  const errorsToSend = [...errorBatchQueue];
-  errorBatchQueue.length = 0;
+  if (batchQueue.length === 0) return;
+  const itemsToSend = [...batchQueue];
+  batchQueue.length = 0;
   if (batchTimer) {
     clearTimeout(batchTimer);
     batchTimer = null;
   }
 
-  // 使用空闲调度发送
-  scheduleIdleReport(() => sendBatchErrorData(errorsToSend, url));
+  scheduleIdleReport(() => sendBatchData(itemsToSend, url));
 }
 
-function addToBatchQueue(errorData: Record<string, any>, url: string): void {
+function addToBatchQueue(data: Record<string, any>, url: string): void {
   lastReportUrl = url;
-  errorBatchQueue.push(errorData);
+  batchQueue.push(data);
 
   if (!batchTimer) {
     batchTimer = setTimeout(() => {
@@ -250,42 +271,42 @@ function addToBatchQueue(errorData: Record<string, any>, url: string): void {
     }, CONFIG.batch.timeout);
   }
 
-  if (errorBatchQueue.length >= CONFIG.batch.maxSize) {
+  if (batchQueue.length >= CONFIG.batch.maxSize) {
     triggerBatchReport(url);
   }
 }
 
 /**
- * 错误上报统一入口（整合所有截流逻辑）
- * @param errorData 错误数据
+ * 通用数据上报入口（含去重、节流、采样、批量、空闲调度）
+ * @param data 上报数据
  * @param url 上报接口地址
  */
-export const sendErrorData = (errorData: Record<string, any>, url: string): void => {
+export const sendData = (data: Record<string, any>, url: string): void => {
   try {
-    console.log('原始错误数据', errorData);
+    console.log('[上报] 原始数据', data);
 
-    if (!filterInvalidError(errorData)) {
-      console.log('[过滤] 无效错误，拦截上报', errorData.message);
+    if (!filterInvalidData(data)) {
+      console.log('[过滤] 无效数据，拦截上报', data.message);
       return;
     }
 
-    if (isDuplicateError(errorData)) {
-      console.log('[去重] 重复错误，拦截上报', errorData.message);
+    if (isDuplicate(data)) {
+      console.log('[去重] 重复数据，拦截上报', data.message);
       return;
     }
 
-    if (!checkThrottle(errorData)) {
+    if (!checkThrottle(data)) {
       return;
     }
 
-    if (!checkSample(errorData)) {
-      console.log('[采样] 未命中采样，拦截上报', errorData.message);
+    if (!checkSample(data)) {
+      console.log('[采样] 未命中采样，拦截上报', data.message);
       return;
     }
 
-    updateErrorCache(errorData);
-    addToBatchQueue(errorData, url);
+    updateCache(data);
+    addToBatchQueue(data, url);
   } catch (error) {
-    console.error('错误上报逻辑自身异常:', error);
+    console.error('上报逻辑自身异常:', error);
   }
 };
