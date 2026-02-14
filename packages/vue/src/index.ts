@@ -1,7 +1,7 @@
 import type { App, Plugin } from 'vue';
 import type { Router, RouteLocationNormalized } from 'vue-router';
 import {
-  initErrorMonitor,
+  initMonitor,
   sendData,
   formatErrorMessage,
   extractFirstErrorFile,
@@ -11,42 +11,60 @@ import {
   currentPage,
   resetReportedMetrics,
 } from '@minitrack/core';
-import type { ErrorMonitorConfig, WebVitalsOptions } from '@minitrack/core';
+import type { MonitorConfig, WebVitalsOptions } from '@minitrack/core';
 
-// ===================== 错误监控 Vue 插件 =====================
+// ===================== Minitrack Vue 插件 =====================
 
-export type VueErrorMonitorOptions = ErrorMonitorConfig;
+/**
+ * Minitrack Vue 插件配置项
+ * 继承自核心 MonitorConfig，并增加 Vue Router 支持
+ */
+export interface MinitrackVueOptions extends MonitorConfig {
+  release: string;
+  environment: any;
+  reportUrl: any;
+  appId: any;
+  /** Vue Router 实例（用于 SPA 路由切换自动采集） */
+  router?: Router;
+  /** Web Vitals 采集延迟（ms，默认 100） */
+  vitalsDelay?: number;
+  /** 是否仅上报 Web Vitals 最终值（默认 true） */
+  vitalsReportFinalOnly?: boolean;
+}
 
-export const VueErrorMonitorPlugin = {
+export const MinitrackPlugin: Plugin = {
   /**
    * Vue 插件安装函数
    *
-   * @param {any} app - Vue 应用实例
-   * @param {VueErrorMonitorOptions} options - 插件配置项
+   * @param {App} app - Vue 应用实例
+   * @param {MinitrackVueOptions} options - 插件配置项
    */
-  install(app: any, options: VueErrorMonitorOptions) {
-    if (!options || !options.reportUrl) return;
+  install(app: App, options: MinitrackVueOptions) {
+    if (!options || !options.appId || !options.reportUrl) {
+      console.warn('[Minitrack] 插件安装失败：缺少 appId 或 reportUrl');
+      return;
+    }
 
-    // 初始化核心错误监控（JS错误、网络错误、资源错误）
-    initErrorMonitor(options);
+    // 1. 初始化核心监控 (PV, Click, JS Error, Resource Error, Network Error, Vitals)
+    // 注意：initMonitor 内部已经调用了 initVitalsCollection，完成了首屏 Vitals 采集
+    initMonitor(options);
 
-    const cfg = app.config;
-    const original = cfg.errorHandler;
+    console.log('[Minitrack] Vue 插件已安装，核心监控已启动');
 
-    /**
-     * Vue 错误处理函数
-     */
-    cfg.errorHandler = (err: unknown, instance?: unknown, info?: unknown) => {
+    // 2. Vue 组件错误监控
+    const originalHandler = app.config.errorHandler;
+    app.config.errorHandler = (err: unknown, instance: unknown, info: string) => {
       const e = err as any;
       const stack = e && e.stack ? e.stack : null;
 
+      // 上报 Vue 错误
       sendData(
         {
           type: ReportType.ERROR,
           message: formatErrorMessage(err),
           stack,
           errorFilename: extractFirstErrorFile(stack),
-          projectName: options.projectName,
+          appId: options.appId,
           environment: options.environment,
           errorType: ErrorType.VUE_ERROR,
           timestamp: new Date().toISOString(),
@@ -56,65 +74,31 @@ export const VueErrorMonitorPlugin = {
         options.reportUrl,
       );
 
-      console.log('vue内部错误', {
-        message: formatErrorMessage(err),
-        stack,
-        errorFilename: extractFirstErrorFile(stack),
-        projectName: options.projectName,
-        environment: options.environment,
-        errorType: ErrorType.VUE_ERROR,
-        timestamp: new Date().toISOString(),
-        userAgent: navigator.userAgent,
-        info,
-      });
+      console.log('[Minitrack] Vue 内部错误', { message: err, info });
 
-      if (typeof original === 'function') {
-        try {
-          (original as any)(err, instance, info);
-        } catch {
-          /* empty */
-        }
+      // 调用原始 handler
+      if (typeof originalHandler === 'function') {
+        originalHandler(err, instance, info);
       }
     };
-  },
-};
 
-// ===================== Web Vitals Vue 插件 =====================
+    // 3. Web Vitals Router 集成 (SPA 优化)
+    // 虽然 initMonitor 已经启动了 Vitals，但对于 SPA，需要在路由切换时重置上下文并重新采集
+    if (options.router) {
+      const vitalsOptions: WebVitalsOptions = {
+        reportUrl: options.reportUrl,
+        appId: options.appId,
+        buildVersion: options.release || 'unknown',
+        environment: options.environment,
+        getUserId: options.userId ? () => options.userId : undefined,
+        delay: options.vitalsDelay || 100,
+        reportFinalOnly: options.vitalsReportFinalOnly ?? true,
+        customReporter: (data) => {
+          sendData(data, options.reportUrl);
+        },
+      };
 
-export interface WebVitalsPluginOptions extends WebVitalsOptions {
-  /** Vue Router 实例（路由切换自动采集） */
-  router?: Router;
-}
-
-export const WebVitalsPlugin: Plugin = {
-  install(app: App, options: WebVitalsPluginOptions) {
-    console.log('Web Vitals Plugin installed');
-    // 最终配置（合并默认值）
-    const finalOptions: WebVitalsPluginOptions = {
-      reportUrl: '/api/v1/monitor/web-vitals',
-      delay: 100,
-      reportFinalOnly: true,
-      ...options,
-    };
-
-    // 1. 首屏采集（页面加载完成后，只初始化一次）
-    const initFirstLoad = () => {
-      console.log('Initiating first load metrics collection');
-      initVitalsCollection(finalOptions);
-    };
-
-    // 确保首屏采集时机正确（DOM 加载完成后）
-    if (document.readyState === 'complete') {
-      console.log('DOM is fully loaded');
-      initFirstLoad();
-    } else {
-      console.log('DOM is not fully loaded, waiting for load event');
-      window.addEventListener('load', initFirstLoad);
-    }
-
-    // 2. 路由切换采集（更新上下文 + 重置去重 + 重新初始化指标收集）
-    if (finalOptions.router) {
-      finalOptions.router.afterEach((to: RouteLocationNormalized) => {
+      options.router.afterEach((to: RouteLocationNormalized) => {
         // 延迟执行，确保 DOM 更新完成
         setTimeout(() => {
           // 更新页面上下文
@@ -124,40 +108,42 @@ export const WebVitalsPlugin: Plugin = {
           // 重置当前页面的去重缓存
           resetReportedMetrics(currentPage.path);
 
-          // 重新初始化指标收集（关键：重新注册监听器）
-          initVitalsCollection(finalOptions);
-        }, finalOptions.delay);
+          // 重新初始化指标收集（关键：重新注册监听器以捕获当前路由的指标）
+          initVitalsCollection(vitalsOptions);
+        }, vitalsOptions.delay);
       });
     }
 
-    // 3. 挂载全局方法（支持组件内手动调用）
-    app.config.globalProperties.$webVitals = {
-      /**
-       * 手动更新采集上下文并重新初始化
-       * @param pagePath 页面路径
-       * @param pageName 页面名称
-       */
-      init: (pagePath: string, pageName: string) => {
-        currentPage.path = pagePath;
-        currentPage.name = pageName;
-        resetReportedMetrics(pagePath);
-        initVitalsCollection(finalOptions);
-      },
-      /**
-       * 手动销毁采集（不支持）
-       */
-      dispose: () => {
-        console.warn('Web Vitals 监听无法手动销毁（库限制），仅重置上下文。');
-      },
+    // 4. 挂载全局方法 $minitrack (可选，提供手动控制能力)
+    app.config.globalProperties.$minitrack = {
+      // 可以在这里暴露更多手动上报方法
+      report: (data: any) => sendData(data, options.reportUrl),
     };
   },
 };
 
+// 保持旧导出兼容性（标记为 @deprecated 建议）
+/** @deprecated Use MinitrackPlugin instead */
+export const VueErrorMonitorPlugin = {
+  install(app: any, options: any) {
+    console.warn('VueErrorMonitorPlugin is deprecated, please use MinitrackPlugin');
+    // 简单转发，但不完全等同，建议用户迁移
+    MinitrackPlugin.install?.(app, options);
+  },
+};
+
+/** @deprecated Use MinitrackPlugin instead */
+export const WebVitalsPlugin = {
+  install(app: any, options: any) {
+    console.warn('WebVitalsPlugin is deprecated, please use MinitrackPlugin');
+  },
+};
+
+// 类型声明
 declare module 'vue' {
   interface ComponentCustomProperties {
-    $webVitals: {
-      init: (pagePath: string, pageName: string) => void;
-      dispose: () => void;
+    $minitrack: {
+      report: (data: any) => void;
     };
   }
 }

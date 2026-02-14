@@ -2,19 +2,29 @@ import { sendData } from '../sender';
 import { ReportType } from '../reportType';
 import { ErrorType } from './type';
 
+export interface NetworkErrorData {
+  type: ReportType;
+  message: string;
+  url?: string;
+  method?: string;
+  status?: number;
+  statusText?: string;
+  appId: string;
+  environment: string;
+  errorType: ErrorType;
+  timestamp: string;
+  userAgent: string;
+}
+
 /**
  * 开启网络错误监控
  * 劫持并监听 XMLHttpRequest 和 fetch 请求，捕获网络异常
  *
  * @param {string} reportUrl - 错误上报地址
- * @param {string} projectName - 项目名称
+ * @param {string} appId - 应用 ID
  * @param {string} environment - 运行环境
  */
-export const monitorNetworkErrors = (
-  reportUrl: string,
-  projectName: string,
-  environment: string,
-) => {
+export const monitorNetworkErrors = (reportUrl: string, appId: string, environment: string) => {
   const originalXhrOpen = XMLHttpRequest.prototype.open;
   XMLHttpRequest.prototype.open = function (method: string, url: string | URL, ...args: any[]) {
     const _urlStr = typeof url === 'string' ? url : String(url);
@@ -22,10 +32,10 @@ export const monitorNetworkErrors = (
       return originalXhrOpen.apply(this, [method, url, ...args] as any);
     }
     this.addEventListener('error', () => {
-      const errorInfo = {
-        type: ReportType.ERROR,
+      const errorInfo: NetworkErrorData = {
+        type: ReportType.NETWORK_ERROR,
         message: `Network Error: ${method} ${url}`,
-        projectName,
+        appId,
         environment,
         errorType: ErrorType.NETWORK_ERROR,
         timestamp: new Date().toISOString(),
@@ -46,11 +56,11 @@ export const monitorNetworkErrors = (
     try {
       const response = await originalFetch(input, init);
       if (!response.ok) {
-        const errorInfo = {
-          type: ReportType.ERROR,
+        const errorInfo: NetworkErrorData = {
+          type: ReportType.NETWORK_ERROR,
           message: `Network Error: ${response.status} ${response.statusText}`,
-          url: input instanceof Request ? input.url : input,
-          projectName,
+          url: input instanceof Request ? input.url : String(input),
+          appId,
           environment,
           errorType: ErrorType.FETCH_ERROR,
           timestamp: new Date().toISOString(),
@@ -61,10 +71,10 @@ export const monitorNetworkErrors = (
       }
       return response;
     } catch (error) {
-      const errorInfo = {
-        type: ReportType.ERROR,
+      const errorInfo: NetworkErrorData = {
+        type: ReportType.NETWORK_ERROR,
         message: `Fetch failed: ${input instanceof Request ? input.url : input}`,
-        projectName,
+        appId,
         environment,
         errorType: ErrorType.FETCH_ERROR,
         timestamp: new Date().toISOString(),

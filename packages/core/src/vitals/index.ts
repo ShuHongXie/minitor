@@ -8,8 +8,10 @@ import { ReportType } from '../reportType';
 export interface WebVitalsOptions {
   /** 上报接口地址（默认：/api/v1/monitor/web-vitals） */
   reportUrl?: string;
-  /** 项目名称（多项目区分） */
-  projectName: string;
+  /** 应用 ID（多项目区分） */
+  appId: string;
+  /** 环境 */
+  environment: string;
   /** 构建版本（多版本区分） */
   buildVersion: string;
   /** 路由切换后延迟采集时间（ms，默认 100） */
@@ -42,7 +44,8 @@ export interface WebVitalsReportData {
   type: ReportType;
   pagePath: string;
   pageName: string;
-  projectName: string;
+  appId: string;
+  environment: string;
   buildVersion: string;
   userId: string | null;
   deviceUuid: string;
@@ -119,7 +122,8 @@ const buildReportData = (
     type: ReportType.WEB_VITALS,
     pagePath,
     pageName,
-    projectName: options.projectName,
+    appId: options.appId,
+    environment: options.environment,
     buildVersion: options.buildVersion,
     userId: options.getUserId?.() || null,
     deviceUuid: getDeviceUuid(),

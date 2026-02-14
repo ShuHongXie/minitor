@@ -19,8 +19,8 @@ export interface PageTransitionData {
   toTitle: string;
   /** 切换方式（pushState / replaceState / popstate / hashchange / load） */
   navigationType: 'pushState' | 'replaceState' | 'popstate' | 'hashchange' | 'load';
-  /** 项目名称 */
-  projectName: string;
+  /** 应用 ID */
+  appId: string;
   /** 环境 */
   environment: string;
   /** 用户 ID */
@@ -39,8 +39,8 @@ export interface PageTransitionData {
 export interface PageTransitionConfig {
   /** 上报接口地址 */
   reportUrl: string;
-  /** 项目名称 */
-  projectName: string;
+  /** 应用 ID */
+  appId: string;
   /** 环境 */
   environment: string;
   /** 用户 ID 获取函数 */
@@ -86,7 +86,7 @@ function reportTransition(navigationType: PageTransitionData['navigationType']):
     toPath: window.location.pathname,
     toTitle: document.title,
     navigationType,
-    projectName: transitionConfig.projectName,
+    appId: transitionConfig.appId,
     environment: transitionConfig.environment,
     userId: transitionConfig.getUserId?.() || null,
     deviceUuid: getDeviceUuid(),

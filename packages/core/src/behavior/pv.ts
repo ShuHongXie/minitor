@@ -1,5 +1,5 @@
 import { ReportType } from '../reportType';
-import { sendRawData } from '../sender';
+import { sendData, sendRawData } from '../sender';
 
 /**
  * PV 上报数据结构
@@ -15,8 +15,8 @@ export interface PVReportData {
   pageTitle: string;
   /** 来源页面 URL */
   referrer: string;
-  /** 项目名称 */
-  projectName: string;
+  /** 应用 ID */
+  appId: string;
   /** 环境 */
   environment: string;
   /** 用户 ID（可选） */
@@ -43,8 +43,8 @@ export interface PVReportData {
 export interface PVMonitorConfig {
   /** 上报接口地址 */
   reportUrl: string;
-  /** 项目名称 */
-  projectName: string;
+  /** 应用 ID */
+  appId: string;
   /** 环境 */
   environment: string;
   /** 用户 ID 获取函数 */
@@ -83,7 +83,7 @@ function buildPVData(duration: number = 0): PVReportData {
     pagePath: window.location.pathname,
     pageTitle: document.title,
     referrer: document.referrer,
-    projectName: config.projectName,
+    appId: config.appId,
     environment: config.environment,
     userId: config.getUserId?.() || null,
     deviceUuid: getDeviceUuid(),

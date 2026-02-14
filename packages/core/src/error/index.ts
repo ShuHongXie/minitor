@@ -15,7 +15,7 @@ export { monitorResourceErrors } from './resourceMonitor';
 
 export interface ErrorMonitorConfig {
   reportUrl: string;
-  projectName: string;
+  appId: string;
   environment: string;
 }
 
@@ -30,11 +30,11 @@ let __monitorInitialized = false;
 export const initErrorMonitor = (config: ErrorMonitorConfig) => {
   if (__monitorInitialized) return;
 
-  const { reportUrl, projectName, environment } = config;
+  const { reportUrl, appId, environment } = config;
 
-  monitorJavaScriptErrors(reportUrl, projectName, environment);
-  monitorNetworkErrors(reportUrl, projectName, environment);
-  monitorResourceErrors(reportUrl, projectName, environment);
+  monitorJavaScriptErrors(reportUrl, appId, environment);
+  monitorNetworkErrors(reportUrl, appId, environment);
+  monitorResourceErrors(reportUrl, appId, environment);
 
   __monitorInitialized = true;
 };

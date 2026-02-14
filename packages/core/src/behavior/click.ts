@@ -15,8 +15,8 @@ export interface ClickReportData {
   pageUrl: string;
   /** 当前页面路径 */
   pagePath: string;
-  /** 项目名称 */
-  projectName: string;
+  /** 应用 ID */
+  appId: string;
   /** 环境 */
   environment: string;
   /** 用户 ID */
@@ -33,8 +33,8 @@ export interface ClickReportData {
 export interface ClickMonitorConfig {
   /** 上报接口地址 */
   reportUrl: string;
-  /** 项目名称 */
-  projectName: string;
+  /** 应用 ID */
+  appId: string;
   /** 环境 */
   environment: string;
   /** 用户 ID 获取函数 */
@@ -180,7 +180,7 @@ function handleInteraction(event: Event, shouldTrack: (el: HTMLElement) => boole
     xpath: getDOMPath(trackableEl),
     pageUrl: window.location.href,
     pagePath: window.location.pathname,
-    projectName: clickConfig!.projectName,
+    appId: clickConfig!.appId,
     environment: clickConfig!.environment,
     userId: clickConfig!.getUserId?.() || null,
     deviceUuid: getDeviceUuid(),
@@ -205,7 +205,7 @@ function handleInteraction(event: Event, shouldTrack: (el: HTMLElement) => boole
  * ```ts
  * initClickMonitor({
  *   reportUrl: '/api/v1/monitor/click',
- *   projectName: 'my-app',
+ *   appId: 'my-app-id',
  *   environment: 'production',
  * });
  * ```

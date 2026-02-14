@@ -30,6 +30,21 @@ const CONFIG = {
   } as BatchConfig,
 };
 
+// 全局上下文配置
+export interface GlobalContext {
+  appId?: string;
+  environment?: string;
+  userId?: string;
+  release?: string;
+  [key: string]: any;
+}
+
+let globalContext: GlobalContext = {};
+
+export function setGlobalContext(context: GlobalContext) {
+  globalContext = { ...globalContext, ...context };
+}
+
 const dataCache = new Map<string, CacheItem>();
 let throttleCount = 0;
 let throttleTimer: ReturnType<typeof setTimeout> | null = null;
@@ -161,6 +176,7 @@ function sendBatchData(items: Record<string, any>[], url: string): void {
   const dataToSend = items.map((item) => ({
     ...item,
     ...browserInfo,
+    ...globalContext, // Merge global context
   }));
 
   const jsonData = JSON.stringify(dataToSend);
@@ -199,7 +215,7 @@ function sendBatchData(items: Record<string, any>[], url: string): void {
  */
 export const sendRawData = (data: Record<string, any>, url: string): void => {
   const browserInfo = getBrowserInfo();
-  const dataToSend = { ...data, ...browserInfo };
+  const dataToSend = { ...data, ...browserInfo, ...globalContext }; // Merge global context
   const jsonData = JSON.stringify(dataToSend);
 
   if (navigator.sendBeacon) {
