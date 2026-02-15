@@ -1,10 +1,13 @@
 import { createApp } from 'vue';
 import './style.css';
 import App from './App.vue';
+import router from './router';
 import { MinitrackPlugin } from '@minitrack/vue';
 import axios from 'axios';
 
 const app = createApp(App);
+
+app.use(router);
 
 // 初始化 axios 配置
 axios.defaults.baseURL = 'http://localhost:3000'; // 示例后端地址
@@ -17,8 +20,13 @@ app.use(MinitrackPlugin, {
   environment: 'development',
   release: '1.0.0', // 对应 buildVersion
   // 如果有 router，可以在这里传入：router: router
+  router,
   // vitalsDelay: 100,
   // vitalsReportFinalOnly: true,
+  senderConfig: {
+    batchSize: 1,
+    sampleRate: 1,
+  },
 });
 
 // 将 axios 挂载到全局属性，方便组件使用（可选）

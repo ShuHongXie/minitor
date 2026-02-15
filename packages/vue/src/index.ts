@@ -88,35 +88,35 @@ export const MinitrackPlugin: Plugin = {
 
     // 3. Web Vitals Router 集成 (SPA 优化)
     // 虽然 initMonitor 已经启动了 Vitals，但对于 SPA，需要在路由切换时重置上下文并重新采集
-    if (options.router) {
-      const vitalsOptions: WebVitalsOptions = {
-        reportUrl: options.reportUrl,
-        appId: options.appId,
-        buildVersion: options.release || 'unknown',
-        environment: options.environment,
-        getUserId: options.userId ? () => options.userId : undefined,
-        delay: options.vitalsDelay || 100,
-        reportFinalOnly: options.vitalsReportFinalOnly ?? true,
-        customReporter: (data) => {
-          sendData(data, options.reportUrl);
-        },
-      };
+    // if (options.router) {
+    //   const vitalsOptions: WebVitalsOptions = {
+    //     reportUrl: options.reportUrl,
+    //     appId: options.appId,
+    //     buildVersion: options.release || 'unknown',
+    //     environment: options.environment,
+    //     getUserId: options.userId ? () => options.userId : undefined,
+    //     delay: options.vitalsDelay || 100,
+    //     reportFinalOnly: options.vitalsReportFinalOnly ?? true,
+    //     customReporter: (data) => {
+    //       sendData(data, options.reportUrl);
+    //     },
+    //   };
 
-      options.router.afterEach((to: RouteLocationNormalized) => {
-        // 延迟执行，确保 DOM 更新完成
-        setTimeout(() => {
-          // 更新页面上下文
-          currentPage.path = to.path;
-          currentPage.name = (to.name as string) || 'UnknownPage';
+    //   options.router.afterEach((to: RouteLocationNormalized) => {
+    //     // 延迟执行，确保 DOM 更新完成
+    //     setTimeout(() => {
+    //       // 更新页面上下文
+    //       currentPage.path = to.path;
+    //       currentPage.name = (to.name as string) || 'UnknownPage';
 
-          // 重置当前页面的去重缓存
-          resetReportedMetrics(currentPage.path);
+    //       // 重置当前页面的去重缓存
+    //       resetReportedMetrics(currentPage.path);
 
-          // 重新初始化指标收集（关键：重新注册监听器以捕获当前路由的指标）
-          initVitalsCollection(vitalsOptions);
-        }, vitalsOptions.delay);
-      });
-    }
+    //       // 重新初始化指标收集（关键：重新注册监听器以捕获当前路由的指标）
+    //       // initVitalsCollection(vitalsOptions);
+    //     }, vitalsOptions.delay);
+    //   });
+    // }
 
     // 4. 挂载全局方法 $minitrack (可选，提供手动控制能力)
     app.config.globalProperties.$minitrack = {

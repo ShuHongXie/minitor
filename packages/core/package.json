@@ -55,6 +55,7 @@
     "typescript": "catalog:"
   },
   "dependencies": {
+    "defu": "^6.1.4",
     "web-vitals": "^5.1.0"
   }
 }

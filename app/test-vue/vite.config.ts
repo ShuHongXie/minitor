@@ -25,7 +25,6 @@ export default defineConfig({
     vitePluginReplaceVersion(),
     vitePluginUploadSourcemap({
       appId: 'test-vue-app',
-      release: '1.0.0',
       uploadUrl: 'http://localhost:3000/sourcemap/upload',
     }),
   ],

@@ -1,7 +1,7 @@
 export * from './error';
 export * from './vitals';
 export * from './reportType';
-export { sendData, sendRawData, setGlobalContext } from './sender';
+export { sendData, sendRawData, setGlobalContext, setSenderConfig } from './sender';
 export * from './behavior';
 // export * from './plugin'; // 移除插件导出，防止前端代码引入 Node.js 模块
 
@@ -9,7 +9,7 @@ import { initPVMonitor } from './behavior/pv';
 import { initClickMonitor } from './behavior/click';
 import { initErrorMonitor } from './error';
 import { initVitalsCollection } from './vitals';
-import { setGlobalContext, sendData } from './sender';
+import { setGlobalContext, setSenderConfig, sendData, type SenderConfig } from './sender';
 
 export interface MonitorConfig {
   appId: string;
@@ -17,9 +17,14 @@ export interface MonitorConfig {
   environment: string;
   userId?: string;
   release?: string;
+  senderConfig?: SenderConfig;
 }
 
 export function initMonitor(config: MonitorConfig) {
+  if (config.senderConfig) {
+    setSenderConfig(config.senderConfig);
+  }
+
   // 1. 设置全局上下文 (sender 会自动合并这些字段)
   setGlobalContext({
     appId: config.appId,
@@ -44,14 +49,14 @@ export function initMonitor(config: MonitorConfig) {
 
   // 4. 初始化 Web Vitals
   // Vitals 模块需要 buildVersion 且默认 reporter 为空，需手动传入 sendData
-  initVitalsCollection({
-    reportUrl: config.reportUrl,
-    appId: config.appId,
-    buildVersion: config.release || 'unknown',
-    environment: config.environment,
-    getUserId: config.userId ? () => config.userId : undefined,
-    customReporter: (data) => {
-      sendData(data, config.reportUrl);
-    },
-  });
+  // initVitalsCollection({
+  //   reportUrl: config.reportUrl,
+  //   appId: config.appId,
+  //   buildVersion: config.release || 'unknown',
+  //   environment: config.environment,
+  //   getUserId: config.userId ? () => config.userId : undefined,
+  //   customReporter: (data) => {
+  //     sendData(data, config.reportUrl);
+  //   },
+  // });
 }

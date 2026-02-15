@@ -14,10 +14,8 @@ export interface UploadSourcemapOptions {
   deleteAfterUpload?: boolean;
   /** 应用 ID（与后端项目的 appId 对应） */
   appId: string;
-  /** 发布版本（可选，默认使用 buildVersion） */
-  release?: string;
-  /** 构建版本/标识（如v1.0.2_20260122），可选，默认使用 utils.ts 中的 buildVersion */
-  buildVersion?: string;
+  /** 发布版本号 */
+  release: string;
   /** 后端上传接口地址 */
   uploadUrl: string;
 }
@@ -28,12 +26,16 @@ async function uploadSourcemapToBackend(
   uploadUrl: string,
   appId: string,
   release: string,
+  version: string,
+  createTime: number,
 ): Promise<boolean> {
   try {
     const fileBuffer = await fs.readFile(filePath);
     const formData = new FormData();
     const blob = new Blob([fileBuffer]);
     formData.append('file', blob, fileName);
+    formData.append('version', version);
+    formData.append('createTime', createTime.toString());
 
     const response = await fetch(uploadUrl, {
       method: 'POST',
@@ -84,18 +86,11 @@ async function findSourcemapFiles(dir: string): Promise<string[]> {
  */
 export function vitePluginUploadSourcemap(options: UploadSourcemapOptions): Plugin {
   // 合并默认配置
-  const {
-    outputDir = 'dist',
-    deleteAfterUpload = true,
-    appId,
-    release,
-    buildVersion = defaultBuildVersion,
-    uploadUrl,
-  } = options;
+  const { outputDir = 'dist', deleteAfterUpload = true, appId, release, uploadUrl } = options;
+  const version = defaultBuildVersion;
+  const createTime = Date.now();
 
-  const finalRelease = release || buildVersion;
-
-  console.log('[vitePluginUploadSourcemap] 插件初始化: appId=%s, release=%s', appId, finalRelease);
+  console.log('[vitePluginUploadSourcemap] 插件初始化: appId=%s, release=%s', appId, release);
 
   // 验证必填配置
   if (!appId) {
@@ -128,7 +123,9 @@ export function vitePluginUploadSourcemap(options: UploadSourcemapOptions): Plug
             fileName,
             uploadUrl,
             appId,
-            finalRelease,
+            release,
+            version,
+            createTime,
           );
 
           if (success && deleteAfterUpload) {

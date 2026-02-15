@@ -1,4 +1,5 @@
 import { getBrowserInfo, generateErrorKey } from './error/utils';
+import { defu } from 'defu';
 
 interface ThrottleConfig {
   windowTime: number;
@@ -6,16 +7,19 @@ interface ThrottleConfig {
   criticalErrors: string[];
 }
 
-interface BatchConfig {
-  batchSize: number;
-}
-
 interface CacheItem {
   timestamp: number;
 }
 
+export interface SenderConfig {
+  cacheExpire?: number;
+  throttle?: ThrottleConfig;
+  sampleRate?: number;
+  batchSize?: number;
+}
+
 // 全局配置
-const CONFIG = {
+let CONFIG: SenderConfig = {
   cacheExpire: 30 * 1000,
   throttle: {
     windowTime: 5 * 1000,
@@ -23,10 +27,16 @@ const CONFIG = {
     criticalErrors: ['Uncaught TypeError', 'RangeError', 'Network Error'],
   } as ThrottleConfig,
   sampleRate: 0.4,
-  batch: {
-    batchSize: 10,
-  } as BatchConfig,
+  batchSize: 10,
 };
+
+export function getSenderConfig() {
+  return CONFIG;
+}
+
+export function setSenderConfig(config: SenderConfig) {
+  CONFIG = defu(config, CONFIG) as SenderConfig;
+}
 
 // 全局上下文配置
 export interface GlobalContext {
@@ -80,7 +90,7 @@ let lastReportUrl = '';
 function cleanExpiredCache(): void {
   const now = Date.now();
   for (const [key, item] of dataCache.entries()) {
-    if (now - item.timestamp > CONFIG.cacheExpire) {
+    if (now - item.timestamp > (CONFIG.cacheExpire || 30000)) {
       dataCache.delete(key);
     }
   }
@@ -112,23 +122,23 @@ function isDuplicate(data: Record<string, any>): boolean {
   const key = generateErrorKey(data);
   const cacheItem = dataCache.get(key);
   cleanExpiredCache();
-  return !!(cacheItem && Date.now() - cacheItem.timestamp < CONFIG.cacheExpire);
+  return !!(cacheItem && Date.now() - cacheItem.timestamp < (CONFIG.cacheExpire || 30000));
 }
 
 function checkThrottle(data: Record<string, any>): boolean {
   const message = data.message || '';
-  const isCritical = CONFIG.throttle.criticalErrors.some((keyword) => message.includes(keyword));
+  const isCritical = CONFIG.throttle?.criticalErrors.some((keyword) => message.includes(keyword));
   if (isCritical) return true;
 
   if (!throttleTimer) {
     throttleTimer = setTimeout(() => {
       throttleCount = 0;
       throttleTimer = null;
-    }, CONFIG.throttle.windowTime);
+    }, CONFIG.throttle?.windowTime);
   }
 
-  if (throttleCount >= CONFIG.throttle.maxCount) {
-    console.warn(`[上报节流] 5秒内已上报${CONFIG.throttle.maxCount}条，本次拦截`, data.message);
+  if (throttleCount >= (CONFIG.throttle?.maxCount || 10)) {
+    console.warn(`[上报节流] 5秒内已上报${CONFIG.throttle?.maxCount}条，本次拦截`, data.message);
     return false;
   }
 
@@ -138,7 +148,7 @@ function checkThrottle(data: Record<string, any>): boolean {
 
 function checkSample(data: Record<string, any>): boolean {
   const message = data.message || '';
-  const isCritical = CONFIG.throttle.criticalErrors.some((keyword) => message.includes(keyword));
+  const isCritical = CONFIG.throttle?.criticalErrors.some((keyword) => message.includes(keyword));
   if (isCritical) return true;
   const randomRate = Math.random();
   return randomRate <= CONFIG.sampleRate;
@@ -269,7 +279,7 @@ function addToBatchQueue(data: Record<string, any>, url: string): void {
   lastReportUrl = url;
   batchQueue.push(data);
 
-  if (batchQueue.length >= CONFIG.batch.batchSize) {
+  if (batchQueue.length >= (CONFIG.batchSize || 10)) {
     triggerBatchReport(url);
   }
 }

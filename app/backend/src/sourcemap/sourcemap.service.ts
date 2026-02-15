@@ -7,12 +7,12 @@ import { Sourcemap, SourcemapDocument } from './sourcemap.schema';
 export class SourcemapService {
   constructor(@InjectModel(Sourcemap.name) private sourcemapModel: Model<SourcemapDocument>) {}
 
-  async saveSourcemapRecord(data: {
+  async create(data: {
     appId: string;
-    release: string;
+    version: string;
+    createTime: number;
     fileName: string;
     filePath: string;
-    originalFileName: string;
   }): Promise<Sourcemap> {
     const record = new this.sourcemapModel(data);
     return record.save();

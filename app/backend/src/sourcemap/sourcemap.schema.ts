@@ -8,17 +8,17 @@ export class Sourcemap {
   @Prop({ required: true, index: true })
   appId: string;
 
-  @Prop({ required: true, index: true })
-  release: string;
+  @Prop()
+  version: string;
+
+  @Prop()
+  createTime: number;
 
   @Prop({ required: true })
   fileName: string;
 
   @Prop({ required: true })
   filePath: string;
-
-  @Prop()
-  originalFileName: string;
 }
 
 export const SourcemapSchema = SchemaFactory.createForClass(Sourcemap);

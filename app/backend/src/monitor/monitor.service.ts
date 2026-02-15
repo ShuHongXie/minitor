@@ -30,11 +30,37 @@ export class MonitorService {
 
   async processAndSave(items: any[]): Promise<void> {
     const logs = items.map((item: MonitorItem) => this.transformToLog(item));
-    console.log('==================转换后的日志:logs', logs);
+    // console.log('==================转换后的日志:logs', logs);
 
     if (logs.length > 0) {
       await this.monitorLogModel.insertMany(logs);
     }
+  }
+
+  async findAll(params: {
+    errorType?: number;
+    pageSize: number;
+    currentPage: number;
+  }): Promise<{ list: MonitorLog[]; total: number }> {
+    const { errorType, pageSize, currentPage } = params;
+    const filter: { type?: ReportType } = {};
+    if (errorType) {
+      filter.type = errorType as ReportType;
+    }
+
+    const total = await this.monitorLogModel.countDocuments(filter).exec();
+    const list = await this.monitorLogModel
+      .find(filter)
+      .sort({ timestamp: -1, _id: -1 })
+      .skip((currentPage - 1) * pageSize)
+      .limit(pageSize)
+      .exec();
+
+    return { list, total };
+  }
+
+  async findById(id: string): Promise<MonitorLog | null> {
+    return this.monitorLogModel.findById(id).exec();
   }
 
   private transformToLog(item: MonitorItem): Partial<MonitorLog> {
