@@ -13,7 +13,7 @@ axios.defaults.baseURL = 'http://localhost:3000'; // 示例后端地址
 // 这将同时启动 PV、Click、JS错误、Vue组件错误、网络错误、资源错误以及 Web Vitals 监控
 app.use(MinitrackPlugin, {
   appId: 'test-vue-app',
-  reportUrl: 'http://localhost:3000/monitor/report',
+  reportUrl: '/api/monitor/report',
   environment: 'development',
   release: '1.0.0', // 对应 buildVersion
   // 如果有 router，可以在这里传入：router: router

@@ -2,16 +2,17 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { MonitorLog, MonitorLogDocument } from './monitor.schema';
+import { ReportType } from './types';
 
 interface MonitorItem {
   appId: string;
-  type: string;
+  type: ReportType;
   subType?: string;
   release?: string;
   environment?: string;
   userId?: string;
-  timestamp?: number;
-  reportTime?: number;
+  timestamp?: number | string;
+  reportTime?: number | string;
   pageUrl?: string;
   enterTime?: number;
   elementHtml?: string;
@@ -29,6 +30,8 @@ export class MonitorService {
 
   async processAndSave(items: any[]): Promise<void> {
     const logs = items.map((item: MonitorItem) => this.transformToLog(item));
+    console.log('==================转换后的日志:logs', logs);
+
     if (logs.length > 0) {
       await this.monitorLogModel.insertMany(logs);
     }
@@ -53,11 +56,13 @@ export class MonitorService {
 
     // Infer subType if not present
     let inferredSubType = subType;
-    if (!subType && type === 'USER_BEHAVIOR') {
+    if (!subType && type === ReportType.USER_BEHAVIOR) {
       if (rest.pageUrl && typeof rest.enterTime === 'number') inferredSubType = 'pv';
       else if (rest.elementHtml) inferredSubType = 'click';
       else if (rest.fromUrl && rest.toUrl) inferredSubType = 'page_transition';
     }
+
+    const normalizedTimestamp = this.normalizeTimestamp(timestamp ?? reportTime);
 
     return {
       appId,
@@ -66,7 +71,7 @@ export class MonitorService {
       release,
       environment,
       userId,
-      timestamp: timestamp || reportTime || Date.now(),
+      timestamp: normalizedTimestamp,
       browserInfo: {
         userAgent,
         screenResolution,
@@ -74,5 +79,18 @@ export class MonitorService {
       },
       data: rest,
     };
+  }
+
+  private normalizeTimestamp(value?: number | string): number {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+    if (typeof value === 'string') {
+      const parsed = Date.parse(value);
+      if (!Number.isNaN(parsed)) {
+        return parsed;
+      }
+    }
+    return Date.now();
   }
 }

@@ -7,8 +7,7 @@ interface ThrottleConfig {
 }
 
 interface BatchConfig {
-  maxSize: number;
-  timeout: number;
+  batchSize: number;
 }
 
 interface CacheItem {
@@ -25,8 +24,7 @@ const CONFIG = {
   } as ThrottleConfig,
   sampleRate: 0.4,
   batch: {
-    maxSize: 10,
-    timeout: 5 * 1000,
+    batchSize: 10,
   } as BatchConfig,
 };
 
@@ -49,7 +47,6 @@ const dataCache = new Map<string, CacheItem>();
 let throttleCount = 0;
 let throttleTimer: ReturnType<typeof setTimeout> | null = null;
 const batchQueue: Record<string, any>[] = [];
-let batchTimer: ReturnType<typeof setTimeout> | null = null;
 let isUnloading = false;
 
 if (typeof window !== 'undefined') {
@@ -73,10 +70,6 @@ function cleanupTimers(): void {
   if (throttleTimer) {
     clearTimeout(throttleTimer);
     throttleTimer = null;
-  }
-  if (batchTimer) {
-    clearTimeout(batchTimer);
-    batchTimer = null;
   }
   batchQueue.length = 0;
   dataCache.clear();
@@ -170,8 +163,6 @@ function sendViaImage(url: string, data: string): void {
  */
 function sendBatchData(items: Record<string, any>[], url: string): void {
   if (items.length === 0) return;
-
-  console.log('[批量上报] 发送数据', items);
   const browserInfo = getBrowserInfo();
   const dataToSend = items.map((item) => ({
     ...item,
@@ -180,6 +171,7 @@ function sendBatchData(items: Record<string, any>[], url: string): void {
   }));
 
   const jsonData = JSON.stringify(dataToSend);
+  console.log('[批量上报] 发送 JSON 数据', jsonData);
 
   if (navigator.sendBeacon) {
     const blob = new Blob([jsonData], { type: 'application/json' });
@@ -269,10 +261,6 @@ function triggerBatchReport(url: string): void {
   if (batchQueue.length === 0) return;
   const itemsToSend = [...batchQueue];
   batchQueue.length = 0;
-  if (batchTimer) {
-    clearTimeout(batchTimer);
-    batchTimer = null;
-  }
 
   scheduleIdleReport(() => sendBatchData(itemsToSend, url));
 }
@@ -281,13 +269,7 @@ function addToBatchQueue(data: Record<string, any>, url: string): void {
   lastReportUrl = url;
   batchQueue.push(data);
 
-  if (!batchTimer) {
-    batchTimer = setTimeout(() => {
-      triggerBatchReport(url);
-    }, CONFIG.batch.timeout);
-  }
-
-  if (batchQueue.length >= CONFIG.batch.maxSize) {
+  if (batchQueue.length >= CONFIG.batch.batchSize) {
     triggerBatchReport(url);
   }
 }

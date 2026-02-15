@@ -3,6 +3,7 @@ export * from './vitals';
 export * from './reportType';
 export { sendData, sendRawData, setGlobalContext } from './sender';
 export * from './behavior';
+// export * from './plugin'; // 移除插件导出，防止前端代码引入 Node.js 模块
 
 import { initPVMonitor } from './behavior/pv';
 import { initClickMonitor } from './behavior/click';

@@ -10,8 +10,12 @@ import {
   initVitalsCollection,
   currentPage,
   resetReportedMetrics,
+  // vitePluginUploadSourcemap as _vitePluginUploadSourcemap,
+  // vitePluginReplaceVersion as _vitePluginReplaceVersion,
 } from '@minitrack/core';
 import type { MonitorConfig, WebVitalsOptions } from '@minitrack/core';
+// export const vitePluginUploadSourcemap = _vitePluginUploadSourcemap;
+// export const vitePluginReplaceVersion = _vitePluginReplaceVersion;
 
 // ===================== Minitrack Vue 插件 =====================
 
@@ -129,13 +133,6 @@ export const VueErrorMonitorPlugin = {
     console.warn('VueErrorMonitorPlugin is deprecated, please use MinitrackPlugin');
     // 简单转发，但不完全等同，建议用户迁移
     MinitrackPlugin.install?.(app, options);
-  },
-};
-
-/** @deprecated Use MinitrackPlugin instead */
-export const WebVitalsPlugin = {
-  install(app: any, options: any) {
-    console.warn('WebVitalsPlugin is deprecated, please use MinitrackPlugin');
   },
 };
 

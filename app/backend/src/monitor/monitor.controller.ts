@@ -14,6 +14,7 @@ export class MonitorController {
   @Post('report')
   @HttpCode(HttpStatus.NO_CONTENT)
   async report(@Body() rawData: any) {
+    console.log('==================上报数据:rawData', rawData);
     if (!rawData) {
       throw new BadRequestException('Data is required');
     }
