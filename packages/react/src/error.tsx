@@ -59,7 +59,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
 
     sendData(
       {
-        type: ReportType.ERROR,
+        type: ReportType.JAVASCRIPT_ERROR,
         message: formatErrorMessage(error),
         stack,
         errorFilename: extractFirstErrorFile(stack),

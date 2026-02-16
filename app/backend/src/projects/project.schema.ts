@@ -5,14 +5,11 @@ export type ProjectDocument = Project & Document;
 
 @Schema({ timestamps: true })
 export class Project {
-  @Prop({ required: true })
+  @Prop({ required: true, unique: true })
   name: string;
 
   @Prop({ required: true, unique: true })
   appId: string;
-
-  @Prop({ required: true })
-  type: string;
 
   @Prop()
   description: string;

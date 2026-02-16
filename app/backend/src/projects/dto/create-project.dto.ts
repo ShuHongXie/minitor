@@ -5,10 +5,6 @@ export class CreateProjectDto {
   @IsString()
   name: string;
 
-  @IsNotEmpty()
-  @IsString()
-  type: string;
-
   @IsOptional()
   @IsString()
   description?: string;

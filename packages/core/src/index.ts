@@ -17,6 +17,7 @@ export interface MonitorConfig {
   environment: string;
   userId?: string;
   release?: string;
+  version?: string;
   senderConfig?: SenderConfig;
 }
 
@@ -31,6 +32,7 @@ export function initMonitor(config: MonitorConfig) {
     environment: config.environment,
     userId: config.userId,
     release: config.release,
+    version: config.version,
   });
 
   // 2. 构造子模块配置
@@ -49,14 +51,14 @@ export function initMonitor(config: MonitorConfig) {
 
   // 4. 初始化 Web Vitals
   // Vitals 模块需要 buildVersion 且默认 reporter 为空，需手动传入 sendData
-  // initVitalsCollection({
-  //   reportUrl: config.reportUrl,
-  //   appId: config.appId,
-  //   buildVersion: config.release || 'unknown',
-  //   environment: config.environment,
-  //   getUserId: config.userId ? () => config.userId : undefined,
-  //   customReporter: (data) => {
-  //     sendData(data, config.reportUrl);
-  //   },
-  // });
+  initVitalsCollection({
+    reportUrl: config.reportUrl,
+    appId: config.appId,
+    buildVersion: config.release || 'unknown',
+    environment: config.environment,
+    getUserId: config.userId ? () => config.userId : undefined,
+    customReporter: (data) => {
+      sendData(data, config.reportUrl);
+    },
+  });
 }

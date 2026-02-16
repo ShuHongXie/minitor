@@ -14,6 +14,11 @@ const routes = [
     component: () => import('../page/other.vue'),
   },
   {
+    path: '/create-project',
+    name: 'CreateProject',
+    component: () => import('../page/createProject.vue'),
+  },
+  {
     path: '/',
     name: 'TestSourceMap',
     component: TestSourceMap,

@@ -11,7 +11,7 @@ export interface NetworkErrorData {
   statusText?: string;
   appId: string;
   environment: string;
-  errorType: ErrorType;
+  errorType?: ErrorType | null;
   timestamp: string;
   userAgent: string;
 }
@@ -37,7 +37,7 @@ export const monitorNetworkErrors = (reportUrl: string, appId: string, environme
         message: `Network Error: ${method} ${url}`,
         appId,
         environment,
-        errorType: ErrorType.NETWORK_ERROR,
+        errorType: null,
         timestamp: new Date().toISOString(),
         userAgent: navigator.userAgent,
       };
@@ -62,7 +62,7 @@ export const monitorNetworkErrors = (reportUrl: string, appId: string, environme
           url: input instanceof Request ? input.url : String(input),
           appId,
           environment,
-          errorType: ErrorType.FETCH_ERROR,
+          errorType: null,
           timestamp: new Date().toISOString(),
           userAgent: navigator.userAgent,
         };
@@ -76,7 +76,7 @@ export const monitorNetworkErrors = (reportUrl: string, appId: string, environme
         message: `Fetch failed: ${input instanceof Request ? input.url : input}`,
         appId,
         environment,
-        errorType: ErrorType.FETCH_ERROR,
+        errorType: null,
         timestamp: new Date().toISOString(),
         userAgent: navigator.userAgent,
       };

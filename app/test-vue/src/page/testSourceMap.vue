@@ -133,7 +133,7 @@ onMounted(() => {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      errorType: 1, // JAVASCRIPT_ERROR
+      errorType: 7, // JAVASCRIPT_ERROR
       pageSize: 10,
       currentPage: 1,
     }),

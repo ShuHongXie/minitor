@@ -8,12 +8,35 @@ import {
   Get,
   Param,
 } from '@nestjs/common';
+import { IsNumber, IsOptional, IsString } from 'class-validator';
 import { MonitorService } from './monitor.service';
 import ErrorStackParser from 'error-stack-parser';
 import sourceMap from 'source-map';
 import { ApiErrorCode } from '../enums/responseCode.enum';
 import fs from 'fs';
 import path from 'path';
+
+class MonitorListDto {
+  @IsNumber()
+  @IsOptional()
+  type?: number;
+
+  @IsNumber()
+  @IsOptional()
+  subType?: number;
+
+  @IsString()
+  @IsOptional()
+  appId?: string;
+
+  @IsNumber()
+  @IsOptional()
+  pageSize?: number;
+
+  @IsNumber()
+  @IsOptional()
+  currentPage?: number;
+}
 
 interface MonitorData {
   appId: string;
@@ -85,10 +108,15 @@ export class MonitorController {
   }
 
   @Post('list')
-  async list(@Body() body: { errorType?: number; pageSize?: number; currentPage?: number }) {
-    const { errorType, pageSize = 10, currentPage = 1 } = body;
+  async list(
+    @Body()
+    body: MonitorListDto,
+  ) {
+    const { type, subType, appId, pageSize = 10, currentPage = 1 } = body;
     return this.monitorService.findAll({
-      errorType,
+      type,
+      subType,
+      appId,
       pageSize: Number(pageSize),
       currentPage: Number(currentPage),
     });

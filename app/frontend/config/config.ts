@@ -178,7 +178,4 @@ export default defineConfig({
   esbuildMinifyIIFE: true,
   requestRecord: {},
   exportStatic: {},
-  define: {
-    'process.env.CI': process.env.CI,
-  },
 });

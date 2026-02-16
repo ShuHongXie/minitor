@@ -4,7 +4,11 @@
 // API 唯一标识：
 import * as api from './api';
 import * as login from './login';
+import * as project from './project';
+import * as monitor from './monitor';
 export default {
   api,
   login,
+  project,
+  monitor,
 };

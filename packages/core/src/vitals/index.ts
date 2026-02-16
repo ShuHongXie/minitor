@@ -170,30 +170,30 @@ export const initVitalsCollection = (options: WebVitalsOptions): void => {
   const { metrics = ['CLS', 'LCP', 'INP', 'FCP', 'TTFB'], reportFinalOnly = true } = options;
 
   // 官方配置项：buffered=true 捕获历史指标，reportAllChanges 控制是否上报所有变化
-  const baseOpts: ReportOpts & { buffered?: boolean } = {
-    buffered: true,
-    reportAllChanges: !reportFinalOnly,
-  };
+  // const baseOpts: ReportOpts & { buffered?: boolean } = {
+  //   buffered: true,
+  //   reportAllChanges: !reportFinalOnly,
+  // };
 
   // 1. 采集 CLS（累积布局偏移）
   if (metrics.includes('CLS')) {
     onCLS((metric) => {
       reportMetric(metric, currentPage.path, currentPage.name, options);
-    }, baseOpts as ReportOpts);
+    });
   }
 
   // 2. 采集 LCP（最大内容绘制）
   if (metrics.includes('LCP')) {
     onLCP((metric) => {
       reportMetric(metric, currentPage.path, currentPage.name, options);
-    }, baseOpts as ReportOpts);
+    });
   }
 
   // 3. 采集 INP（交互到下一次绘制）- npm 强调：需等待页面卸载才触发最终值
   if (metrics.includes('INP')) {
     onINP((metric) => {
       reportMetric(metric, currentPage.path, currentPage.name, options);
-    }, baseOpts as ReportOpts);
+    });
   }
 
   // 4. 采集 FCP（首次内容绘制）
@@ -201,13 +201,13 @@ export const initVitalsCollection = (options: WebVitalsOptions): void => {
     onFCP((metric) => {
       console.log('FCP', metric);
       reportMetric(metric, currentPage.path, currentPage.name, options);
-    }, baseOpts as ReportOpts);
+    });
   }
 
   // 5. 采集 TTFB（首字节时间）
   if (metrics.includes('TTFB')) {
     onTTFB((metric) => {
       reportMetric(metric, currentPage.path, currentPage.name, options);
-    }, baseOpts as ReportOpts);
+    });
   }
 };

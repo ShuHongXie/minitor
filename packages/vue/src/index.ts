@@ -64,7 +64,7 @@ export const MinitrackPlugin: Plugin = {
       // 上报 Vue 错误
       sendData(
         {
-          type: ReportType.ERROR,
+          type: ReportType.JAVASCRIPT_ERROR,
           message: formatErrorMessage(err),
           stack,
           errorFilename: extractFirstErrorFile(stack),

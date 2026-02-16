@@ -13,8 +13,14 @@ export class SourcemapService {
     createTime: number;
     fileName: string;
     filePath: string;
+    originalFileName?: string;
   }): Promise<Sourcemap> {
     const record = new this.sourcemapModel(data);
     return record.save();
+  }
+
+  async findLatestVersion(appId: string): Promise<string | null> {
+    const record = await this.sourcemapModel.findOne({ appId }).sort({ createTime: -1 }).exec();
+    return record ? record.version : null;
   }
 }

@@ -7,7 +7,8 @@ import { ReportType } from './types';
 interface MonitorItem {
   appId: string;
   type: ReportType;
-  subType?: string;
+  subType?: number;
+  errorType?: number;
   release?: string;
   environment?: string;
   userId?: string;
@@ -38,14 +39,22 @@ export class MonitorService {
   }
 
   async findAll(params: {
-    errorType?: number;
+    type?: number;
+    subType?: number;
+    appId?: string;
     pageSize: number;
     currentPage: number;
   }): Promise<{ list: MonitorLog[]; total: number }> {
-    const { errorType, pageSize, currentPage } = params;
-    const filter: { type?: ReportType } = {};
-    if (errorType) {
-      filter.type = errorType as ReportType;
+    const { type, subType, appId, pageSize, currentPage } = params;
+    const filter: { type?: ReportType; subType?: number; appId?: string } = {};
+    if (type) {
+      filter.type = type as ReportType;
+    }
+    if (subType) {
+      filter.subType = subType;
+    }
+    if (appId) {
+      filter.appId = appId;
     }
 
     const total = await this.monitorLogModel.countDocuments(filter).exec();
@@ -68,6 +77,7 @@ export class MonitorService {
       appId,
       type,
       subType,
+      errorType,
       release,
       environment,
       userId,
@@ -81,11 +91,17 @@ export class MonitorService {
     } = item;
 
     // Infer subType if not present
-    let inferredSubType = subType;
-    if (!subType && type === ReportType.USER_BEHAVIOR) {
-      if (rest.pageUrl && typeof rest.enterTime === 'number') inferredSubType = 'pv';
-      else if (rest.elementHtml) inferredSubType = 'click';
-      else if (rest.fromUrl && rest.toUrl) inferredSubType = 'page_transition';
+    let inferredSubType: number | undefined;
+    if (typeof errorType === 'number') {
+      inferredSubType = errorType;
+    } else if (typeof subType === 'number') {
+      inferredSubType = subType;
+    }
+
+    if (inferredSubType === undefined) {
+      if (type === ReportType.JAVASCRIPT_ERROR) {
+        inferredSubType = 1; // ErrorType.JAVASCRIPT_ERROR
+      }
     }
 
     const normalizedTimestamp = this.normalizeTimestamp(timestamp ?? reportTime);
@@ -95,6 +111,7 @@ export class MonitorService {
       type,
       subType: inferredSubType,
       release,
+      version: item.version,
       environment,
       userId,
       timestamp: normalizedTimestamp,

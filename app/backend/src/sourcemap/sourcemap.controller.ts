@@ -54,6 +54,14 @@ export class SourcemapController {
       createTime: body.createTime ? parseInt(body.createTime, 10) : Date.now(),
       fileName: fileName,
       filePath: filePath,
+      originalFileName: file.originalname,
     });
+  }
+
+  @Post('latest-version')
+  async getLatestVersion(@Body('appId') appId: string) {
+    if (!appId) throw new BadRequestException('appId is required');
+    const version = await this.sourcemapService.findLatestVersion(appId);
+    return { version };
   }
 }
