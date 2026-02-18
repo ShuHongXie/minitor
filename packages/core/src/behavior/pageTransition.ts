@@ -79,7 +79,7 @@ function reportTransition(navigationType: PageTransitionData['navigationType']):
   const fromDuration = pageEnterTime > 0 ? now - pageEnterTime : 0;
 
   const data: PageTransitionData = {
-    type: ReportType.USER_BEHAVIOR,
+    type: ReportType.PAGE_TRANSITION,
     fromUrl: previousUrl,
     fromPath: previousPath,
     toUrl: window.location.href,

@@ -175,8 +175,9 @@ function sendBatchData(items: Record<string, any>[], url: string): void {
   if (items.length === 0) return;
   const browserInfo = getBrowserInfo();
   const dataToSend = items.map((item) => ({
-    ...item,
     ...browserInfo,
+    ...item,
+
     ...globalContext, // Merge global context
   }));
 
@@ -298,10 +299,10 @@ export const sendData = (data: Record<string, any>, url: string): void => {
       return;
     }
 
-    if (isDuplicate(data)) {
-      console.log('[去重] 重复数据，拦截上报', data.message);
-      return;
-    }
+    // if (isDuplicate(data)) {
+    //   console.log('[去重] 重复数据，拦截上报', data.message);
+    //   return;
+    // }
 
     if (!checkThrottle(data)) {
       return;

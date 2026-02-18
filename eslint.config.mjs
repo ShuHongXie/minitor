@@ -13,6 +13,8 @@ export default [
       '@typescript-eslint/no-unsafe-member-acces': 'off',
       '@typescript-eslint/no-floating-promises': 'warn',
       '@typescript-eslint/no-unsafe-argument': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/ban-ts-comment': 'off',
       'no-unused-vars': 'warn',
       'no-console': 'warn',
     },

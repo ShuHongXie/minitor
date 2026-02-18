@@ -37,7 +37,7 @@ const initApp = async () => {
     // vitalsDelay: 100,
     // vitalsReportFinalOnly: true,
     senderConfig: {
-      batchSize: 1,
+      batchSize: 3,
       sampleRate: 1,
     },
   });

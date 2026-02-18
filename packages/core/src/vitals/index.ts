@@ -140,6 +140,7 @@ const reportMetric = (
   pageName: string,
   options: WebVitalsOptions,
 ): void => {
+  // console.log('metric:', metric);
   // 去重：同一页面的同一指标 ID 仅上报一次
   const cachedPath = reportedMetrics.get(metric.id);
   if (cachedPath === pagePath) return;
@@ -155,6 +156,7 @@ const reportMetric = (
 
   // 上报（捕获错误，不影响主流程）
   try {
+    console.log('reportData:', reportData);
     reporter(reportData);
   } catch (err) {
     console.warn(`Web Vitals 上报失败 [${metric.name}]:`, err);
@@ -199,7 +201,6 @@ export const initVitalsCollection = (options: WebVitalsOptions): void => {
   // 4. 采集 FCP（首次内容绘制）
   if (metrics.includes('FCP')) {
     onFCP((metric) => {
-      console.log('FCP', metric);
       reportMetric(metric, currentPage.path, currentPage.name, options);
     });
   }

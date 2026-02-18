@@ -1,3 +1,4 @@
+// @ts-expect-error
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -70,6 +71,223 @@ export class MonitorService {
 
   async findById(id: string): Promise<MonitorLog | null> {
     return this.monitorLogModel.findById(id).exec();
+  }
+
+  async getWebVitalsStats(appId: string, startTime?: number, endTime?: number): Promise<any[]> {
+    const match: any = {
+      appId,
+      type: ReportType.WEB_VITALS,
+    };
+
+    if (startTime || endTime) {
+      match.timestamp = {};
+      if (startTime) match.timestamp.$gte = startTime;
+      if (endTime) match.timestamp.$lte = endTime;
+    }
+
+    return this.monitorLogModel.aggregate([
+      { $match: match },
+      {
+        $group: {
+          _id: '$data.name',
+          avgValue: { $avg: '$data.value' },
+          count: { $sum: 1 },
+          max: { $max: '$data.value' },
+          min: { $min: '$data.value' },
+        },
+      },
+      {
+        $project: {
+          name: '$_id',
+          avgValue: 1,
+          count: 1,
+          max: 1,
+          min: 1,
+          _id: 0,
+        },
+      },
+    ]);
+  }
+
+  async getWebVitalsPageStats(
+    appId: string,
+    metricName: string,
+    startTime?: number,
+    endTime?: number,
+  ): Promise<any[]> {
+    const match: any = {
+      appId,
+      type: ReportType.WEB_VITALS,
+      'data.name': metricName,
+    };
+
+    if (startTime || endTime) {
+      match.timestamp = {};
+      if (startTime) match.timestamp.$gte = startTime;
+      if (endTime) match.timestamp.$lte = endTime;
+    }
+
+    return this.monitorLogModel.aggregate([
+      { $match: match },
+      {
+        $group: {
+          _id: '$data.pagePath',
+          avgValue: { $avg: '$data.value' },
+          count: { $sum: 1 },
+          max: { $max: '$data.value' },
+          min: { $min: '$data.value' },
+        },
+      },
+      {
+        $project: {
+          pagePath: '$_id',
+          avgValue: 1,
+          count: 1,
+          max: 1,
+          min: 1,
+          _id: 0,
+        },
+      },
+      { $sort: { avgValue: -1 } },
+    ]);
+  }
+
+  async getPVStats(appId: string, startTime?: number, endTime?: number): Promise<any[]> {
+    const match: any = {
+      appId,
+      type: ReportType.PV,
+    };
+
+    if (startTime || endTime) {
+      match.timestamp = {};
+      if (startTime) match.timestamp.$gte = startTime;
+      if (endTime) match.timestamp.$lte = endTime;
+    }
+
+    return this.monitorLogModel.aggregate([
+      { $match: match },
+      {
+        $group: {
+          _id: '$data.pagePath',
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $project: {
+          pagePath: '$_id',
+          count: 1,
+          _id: 0,
+        },
+      },
+      { $sort: { count: -1 } },
+    ]);
+  }
+
+  async getClickStats(appId: string, startTime?: number, endTime?: number): Promise<any[]> {
+    const match: any = {
+      appId,
+      type: ReportType.CLICK,
+    };
+
+    if (startTime || endTime) {
+      match.timestamp = {};
+      if (startTime) match.timestamp.$gte = startTime;
+      if (endTime) match.timestamp.$lte = endTime;
+    }
+
+    return this.monitorLogModel.aggregate([
+      { $match: match },
+      {
+        $group: {
+          _id: {
+            pagePath: '$data.pagePath',
+            elementHtml: '$data.elementHtml',
+            xpath: '$data.xpath',
+          },
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $project: {
+          pagePath: '$_id.pagePath',
+          elementHtml: '$_id.elementHtml',
+          xpath: '$_id.xpath',
+          count: 1,
+          _id: 0,
+        },
+      },
+      { $sort: { count: -1 } },
+    ]);
+  }
+
+  async getPageTransitionStats(
+    appId: string,
+    startTime?: number,
+    endTime?: number,
+  ): Promise<any[]> {
+    const match: any = {
+      appId,
+      type: ReportType.PAGE_TRANSITION,
+    };
+
+    if (startTime || endTime) {
+      match.timestamp = {};
+      if (startTime) match.timestamp.$gte = startTime;
+      if (endTime) match.timestamp.$lte = endTime;
+    }
+
+    return this.monitorLogModel.aggregate([
+      { $match: match },
+      {
+        $group: {
+          _id: {
+            from: '$data.fromPath',
+            to: '$data.toPath',
+          },
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $project: {
+          from: '$_id.from',
+          to: '$_id.to',
+          count: 1,
+          _id: 0,
+        },
+      },
+      { $sort: { count: -1 } },
+    ]);
+  }
+
+  async getWhiteScreenStats(appId: string, startTime?: number, endTime?: number): Promise<any[]> {
+    const match: any = {
+      appId,
+      type: ReportType.WHITE_SCREEN_ERROR,
+    };
+
+    if (startTime || endTime) {
+      match.timestamp = {};
+      if (startTime) match.timestamp.$gte = startTime;
+      if (endTime) match.timestamp.$lte = endTime;
+    }
+
+    return this.monitorLogModel.aggregate([
+      { $match: match },
+      {
+        $group: {
+          _id: '$data.pageUrl',
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $project: {
+          pageUrl: '$_id',
+          count: 1,
+          _id: 0,
+        },
+      },
+      { $sort: { count: -1 } },
+    ]);
   }
 
   private transformToLog(item: MonitorItem): Partial<MonitorLog> {

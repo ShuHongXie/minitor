@@ -9,6 +9,7 @@ import { initPVMonitor } from './behavior/pv';
 import { initClickMonitor } from './behavior/click';
 import { initErrorMonitor } from './error';
 import { initVitalsCollection } from './vitals';
+import { initBlankScreenMonitor } from './screen';
 import { setGlobalContext, setSenderConfig, sendData, type SenderConfig } from './sender';
 
 export interface MonitorConfig {
@@ -48,6 +49,7 @@ export function initMonitor(config: MonitorConfig) {
   initPVMonitor(subConfig);
   initClickMonitor(subConfig);
   initErrorMonitor(subConfig);
+  initBlankScreenMonitor(subConfig);
 
   // 4. 初始化 Web Vitals
   // Vitals 模块需要 buildVersion 且默认 reporter 为空，需手动传入 sendData

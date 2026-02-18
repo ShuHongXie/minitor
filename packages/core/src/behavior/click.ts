@@ -175,7 +175,7 @@ function handleInteraction(event: Event, shouldTrack: (el: HTMLElement) => boole
   if (!trackableEl) return;
 
   const data: ClickReportData = {
-    type: ReportType.USER_BEHAVIOR,
+    type: ReportType.CLICK,
     elementHtml: getElementHtml(trackableEl),
     xpath: getDOMPath(trackableEl),
     pageUrl: window.location.href,

@@ -23,33 +23,90 @@ export default [
     ],
   },
   {
-    path: '/welcome',
-    name: 'welcome',
-    icon: 'smile',
-    component: './Welcome',
-  },
-  {
-    path: '/admin',
-    name: 'admin',
-    icon: 'crown',
-    access: 'canAdmin',
-    routes: [
-      {
-        path: '/admin',
-        redirect: '/admin/sub-page',
-      },
-      {
-        path: '/admin/sub-page',
-        name: 'sub-page',
-        component: './Admin',
-      },
-    ],
-  },
-  {
     name: 'project-list',
     icon: 'table',
     path: '/projects',
     component: './ProjectList',
+  },
+  {
+    name: 'web-vitals',
+    icon: 'thunderbolt',
+    path: '/web-vitals',
+    component: './Monitor/components/ProjectListCard',
+    props: {
+      title: 'Web Vitals 性能监控',
+      targetPath: '/web-vitals',
+    },
+  },
+  {
+    path: '/web-vitals/:appId',
+    component: './Monitor/WebVitals',
+    hideInMenu: true,
+  },
+  {
+    path: '/web-vitals/:appId/detail/:metricName',
+    component: './Monitor/WebVitals/Detail',
+    hideInMenu: true,
+  },
+  {
+    name: 'pv-monitor',
+    icon: 'lineChart',
+    path: '/pv',
+    component: './Monitor/components/ProjectListCard',
+    props: {
+      title: '页面访问 (PV) 监控',
+      targetPath: '/pv',
+    },
+  },
+  {
+    path: '/pv/:appId',
+    component: './Monitor/PV',
+    hideInMenu: true,
+  },
+  {
+    name: 'click-monitor',
+    icon: 'click',
+    path: '/click',
+    component: './Monitor/components/ProjectListCard',
+    props: {
+      title: '用户点击监控',
+      targetPath: '/click',
+    },
+  },
+  {
+    path: '/click/:appId',
+    component: './Monitor/Click',
+    hideInMenu: true,
+  },
+  {
+    name: 'page-transition-monitor',
+    icon: 'swap',
+    path: '/page-transition',
+    component: './Monitor/components/ProjectListCard',
+    props: {
+      title: '页面跳转监控',
+      targetPath: '/page-transition',
+    },
+  },
+  {
+    path: '/page-transition/:appId',
+    component: './Monitor/PageTransition',
+    hideInMenu: true,
+  },
+  {
+    name: 'white-screen-monitor',
+    icon: 'stop',
+    path: '/white-screen',
+    component: './Monitor/components/ProjectListCard',
+    props: {
+      title: '白屏异常监控',
+      targetPath: '/white-screen',
+    },
+  },
+  {
+    path: '/white-screen/:appId',
+    component: './Monitor/WhiteScreen',
+    hideInMenu: true,
   },
   {
     name: 'monitor-list',
@@ -152,7 +209,7 @@ export default [
   // },
   {
     path: '/',
-    redirect: '/welcome',
+    redirect: '/projects',
   },
   {
     path: '*',

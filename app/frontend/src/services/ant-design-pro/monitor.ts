@@ -68,3 +68,121 @@ export async function analyzeError(
     ...(options || {}),
   });
 }
+
+/** 获取 Web Vitals 统计数据 GET /api/monitor/vitals/:appId */
+export async function getWebVitalsStats(
+  appId: string,
+  params?: { startTime?: number; endTime?: number },
+) {
+  return request<{
+    code: number;
+    msg: string;
+    data: {
+      name: string;
+      avgValue: number;
+      count: number;
+      max: number;
+      min: number;
+    }[];
+  }>(`/api/monitor/vitals/${appId}`, {
+    method: 'GET',
+    params,
+  });
+}
+
+/** 获取 Web Vitals 页面统计数据 GET /api/monitor/vitals/:appId/detail/:metricName */
+export async function getWebVitalsPageStats(
+  appId: string,
+  metricName: string,
+  params?: { startTime?: number; endTime?: number },
+) {
+  return request<{
+    code: number;
+    msg: string;
+    data: {
+      pagePath: string;
+      avgValue: number;
+      count: number;
+      max: number;
+      min: number;
+    }[];
+  }>(`/api/monitor/vitals/${appId}/detail/${metricName}`, {
+    method: 'GET',
+    params,
+  });
+}
+
+/** 获取 PV 统计数据 GET /api/monitor/pv/:appId */
+export async function getPVStats(
+  appId: string,
+  params?: { startTime?: number; endTime?: number },
+) {
+  return request<{
+    code: number;
+    msg: string;
+    data: {
+      pagePath: string;
+      count: number;
+    }[];
+  }>(`/api/monitor/pv/${appId}`, {
+    method: 'GET',
+    params,
+  });
+}
+
+/** 获取点击统计数据 GET /api/monitor/click/:appId */
+export async function getClickStats(
+  appId: string,
+  params?: { startTime?: number; endTime?: number },
+) {
+  return request<{
+    code: number;
+    msg: string;
+    data: {
+      pagePath: string;
+      elementHtml: string;
+      xpath: string;
+      count: number;
+    }[];
+  }>(`/api/monitor/click/${appId}`, {
+    method: 'GET',
+    params,
+  });
+}
+
+/** 获取页面跳转统计数据 GET /api/monitor/page-transition/:appId */
+export async function getPageTransitionStats(
+  appId: string,
+  params?: { startTime?: number; endTime?: number },
+) {
+  return request<{
+    code: number;
+    msg: string;
+    data: {
+      from: string;
+      to: string;
+      count: number;
+    }[];
+  }>(`/api/monitor/page-transition/${appId}`, {
+    method: 'GET',
+    params,
+  });
+}
+
+/** 获取白屏统计数据 GET /api/monitor/white-screen/:appId */
+export async function getWhiteScreenStats(
+  appId: string,
+  params?: { startTime?: number; endTime?: number },
+) {
+  return request<{
+    code: number;
+    msg: string;
+    data: {
+      pageUrl: string;
+      count: number;
+    }[];
+  }>(`/api/monitor/white-screen/${appId}`, {
+    method: 'GET',
+    params,
+  });
+}

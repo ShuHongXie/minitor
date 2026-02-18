@@ -1,294 +1,209 @@
-import type { App, Plugin } from 'vue';
-import type { Router, RouteLocationNormalized } from 'vue-router';
-import { sendErrorData } from '../core/sender';
-import { getBrowserInfo } from '../core/utils';
+import { sendRawData } from '../sender';
+import { ReportType } from '../reportType';
 
-// ===================== 原有类型定义 =====================
+// ===================== 类型定义 =====================
 export interface BlankScreenOptions {
-  projectName?: string;
-  buildVersion?: string;
+  /** 应用 ID（必填） */
+  appId: string;
+  /** 环境 */
+  environment: string;
+  /** 上报接口地址 */
+  reportUrl: string;
+  /** 检测延迟时间（ms，默认 3000） */
   delay?: number;
-  router?: Router;
+  /** Loading 元素的 selector 列表（检测到这些元素存在时不报白屏） */
   loadingSelectors?: string[];
+  /** 容器元素（如果采样点是这些元素，视为白屏点） */
   wrapperElements?: string[];
+  /** 采样网格大小（默认 5x5） */
   gridSize?: number;
+  /** 白屏判定阈值（0~1，默认 0.8，即 80% 的点为空则判定为白屏） */
   blankThreshold?: number;
-  useObserver?: boolean;
-  observerTimeout?: number;
+  /** 用户ID获取函数 */
   getUserId?: () => string | null | undefined;
-  /** 新增：上报接口地址（可配置） */
-  reportUrl?: string;
 }
 
-interface BlankScreenReportData {
-  // 基础字段
-  kind: 'stability';
-  type: 'blank';
+export interface BlankScreenReportData {
+  type: ReportType;
+  /** 白屏点数量 */
   emptyPoints: number;
+  /** 总采样点数量 */
   totalPoints: number;
-  screen: string;
+  /** 屏幕分辨率 */
+  screenResolution: string;
+  /** 视口大小 */
   viewPoint: string;
-  timeStamp: number;
+  /** 中心点元素 selector */
   selector: string;
-
-  // 页面/路由标识
-  pagePath: string;
-  pageName: string;
-  routeQuery: Record<string, any>;
-  routeParams: Record<string, any>;
-
-  // 用户/场景信息
+  /** 页面 URL */
+  pageUrl: string;
+  /** 应用 ID */
+  appId: string;
+  /** 环境 */
+  environment: string;
+  /** 用户 ID */
   userId: string | null;
-  uuid: string;
-  isMobile: boolean;
-  scene: 'firstLoad' | 'routeChange';
-  pageLoadTime: number;
-
-  // 浏览器/设备信息（由getBrowserInfo补充，无需提前定义）
-  projectName: string;
-  buildVersion: string;
+  /** 设备唯一标识 */
+  deviceUuid: string;
+  /** 上报时间戳 */
+  reportTime: number;
 }
 
-// ===================== 原有工具函数 =====================
+// ===================== 工具函数 =====================
 const getDeviceUuid = (): string => {
-  let uuid = localStorage.getItem('device_uuid');
+  const KEY = 'minitrack_device_uuid';
+  let uuid = localStorage.getItem(KEY);
   if (!uuid) {
-    uuid = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-    localStorage.setItem('device_uuid', uuid);
+    uuid = crypto.randomUUID
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    localStorage.setItem(KEY, uuid);
   }
   return uuid;
 };
 
-const isMobileDevice = (): boolean => {
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-};
-
-const getPageLoadTime = (): number => {
-  if (performance && performance.timing) {
-    return performance.timing.loadEventEnd - performance.timing.navigationStart;
-  }
-  return Date.now() - (window._routeChangeTime || Date.now());
-};
-
-const getSelector = (element: HTMLElement | null): string => {
+const getSelector = (element: Element | null): string => {
   if (!element) return '';
   if (element.id) return `#${element.id}`;
-  if (element.className) {
-    const classList = Array.isArray(element.className)
-      ? element.className
-      : (element.className as string).split(' ');
-    return `.${classList.filter(Boolean).join('.')}`;
+  if (element.className && typeof element.className === 'string') {
+    const classList = element.className.split(/\s+/).filter(Boolean);
+    if (classList.length > 0) {
+      return `.${classList.join('.')}`;
+    }
   }
-  return element.nodeName.toLowerCase();
+  return element.tagName.toLowerCase();
 };
 
 // ===================== 核心检测逻辑 =====================
-const blankScreen = (
-  options: BlankScreenOptions = {},
-  routeContext?: {
-    route: RouteLocationNormalized | null;
-    scene: 'firstLoad' | 'routeChange';
-  },
-): void => {
+const checkBlankScreen = (options: BlankScreenOptions): void => {
   const {
-    delay = 3000,
-    loadingSelectors = ['.loading', '.el-loading', '.v-loading', '#loading'],
-    wrapperElements = ['html', 'body', '#app'],
+    wrapperElements = ['html', 'body', '#app', '#root'],
+    loadingSelectors = ['.loading', '.ant-spin', '.el-loading-mask'],
     gridSize = 5,
     blankThreshold = 0.8,
-    useObserver = false,
-    observerTimeout = 5000,
-    getUserId = () => null,
-    reportUrl = '/minitor/blank', // 默认上报地址统一为独立模块
-    projectName,
-    buildVersion,
   } = options;
 
-  if (!projectName || !buildVersion) {
-    console.warn('[BlankScreen] 缺少 projectName 或 buildVersion，取消上报');
-    return;
-  }
-
-  const finalRouteContext = routeContext || {
-    route: options.router?.currentRoute.value || null,
-    scene: window._isFirstLoad ? 'firstLoad' : 'routeChange',
-  };
+  if (typeof document === 'undefined' || typeof window === 'undefined') return;
 
   let emptyPoints = 0;
   let totalPoints = 0;
 
-  const isLoadingElement = (element: HTMLElement | null): boolean => {
-    if (!element) return false;
-    const elementSelector = getSelector(element);
-    return loadingSelectors.some((loadingSel) => {
-      const sel =
-        loadingSel.startsWith('.') || loadingSel.startsWith('#') ? loadingSel.slice(1) : loadingSel;
-      return elementSelector.includes(sel);
-    });
-  };
+  // 1. 检查是否有 Loading 元素（如果有，认为页面正在加载，暂不报白屏）
+  const isLoading = loadingSelectors.some((selector) => document.querySelector(selector));
+  if (isLoading) {
+    console.log('[BlankScreen] Page is loading, skip detection.');
+    return;
+  }
 
-  const isWrapper = (element: HTMLElement | null): void => {
-    const selector = getSelector(element);
-    if (wrapperElements.includes(selector)) {
-      emptyPoints++;
-    }
-  };
+  // 2. 网格采样
+  const safeGridSize = Math.max(3, gridSize);
+  const width = window.innerWidth;
+  const height = window.innerHeight;
 
-  const checkGridPoints = (): void => {
-    emptyPoints = 0;
-    totalPoints = 0;
-    const safeGridSize = Math.max(3, gridSize);
+  for (let i = 0; i < safeGridSize; i++) {
+    for (let j = 0; j < safeGridSize; j++) {
+      const x = Math.floor((width * i) / (safeGridSize - 1));
+      const y = Math.floor((height * j) / (safeGridSize - 1));
 
-    for (let i = 0; i < safeGridSize; i++) {
-      for (let j = 0; j < safeGridSize; j++) {
-        const x = (window.innerWidth * i) / (safeGridSize - 1);
-        const y = (window.innerHeight * j) / (safeGridSize - 1);
-        const targetX = x === 0 ? 1 : x;
-        const targetY = y === 0 ? 1 : y;
+      // 修正边界坐标，避免 elementsFromPoint 返回空
+      const safeX = x === 0 ? 1 : x === width ? width - 1 : x;
+      const safeY = y === 0 ? 1 : y === height ? height - 1 : y;
 
-        try {
-          const elements = document.elementsFromPoint(targetX, targetY);
-          const topElement = elements[0] as HTMLElement | null;
+      const elements = document.elementsFromPoint(safeX, safeY);
+      const topElement = elements[0];
 
-          if (isLoadingElement(topElement)) {
-            totalPoints = 0;
-            emptyPoints = 0;
-            return;
-          }
+      totalPoints++;
 
-          isWrapper(topElement);
-          totalPoints++;
-        } catch (e) {
-          console.warn('白屏检测坐标异常:', e);
-          totalPoints++;
-        }
+      if (!topElement) {
+        emptyPoints++;
+        continue;
+      }
+
+      // 判断采样点是否落在容器元素上（即没有内容覆盖在容器上）
+      const selector = getSelector(topElement);
+      const tagName = topElement.tagName.toLowerCase();
+
+      // 简单判断：如果是 wrapper 元素或者没有子元素的空 div，记为空点
+      if (
+        wrapperElements.includes(selector) ||
+        wrapperElements.includes(tagName) ||
+        wrapperElements.includes(`#${topElement.id}`) ||
+        (tagName === 'div' && topElement.children.length === 0 && !topElement.textContent?.trim())
+      ) {
+        emptyPoints++;
       }
     }
+  }
 
-    if (totalPoints > 0 && emptyPoints / totalPoints >= blankThreshold) {
-      const centerElements = document.elementsFromPoint(
-        window.innerWidth / 2,
-        window.innerHeight / 2,
-      );
-      const centerSelector = getSelector(centerElements[0] as HTMLElement | null);
+  // 3. 判定白屏
+  if (totalPoints > 0 && emptyPoints / totalPoints >= blankThreshold) {
+    const centerElement = document.elementFromPoint(width / 2, height / 2);
 
-      // 构造上报数据
-      const reportData: BlankScreenReportData = {
-        kind: 'stability',
-        type: 'blank',
-        emptyPoints,
-        totalPoints,
-        screen: `${window.screen.width}X${window.screen.height}`,
-        viewPoint: `${window.innerWidth}X${window.innerHeight}`,
-        timeStamp: Date.now(),
-        selector: centerSelector,
-        pagePath: finalRouteContext.route?.path || window.location.pathname,
-        pageName: String(finalRouteContext.route?.name || ''),
-        routeQuery: finalRouteContext.route?.query || {},
-        routeParams: finalRouteContext.route?.params || {},
-        userId: getUserId() || null,
-        uuid: getDeviceUuid(),
-        isMobile: isMobileDevice(),
-        scene: finalRouteContext.scene,
-        pageLoadTime: getPageLoadTime(),
-        projectName,
-        buildVersion,
-      };
+    const reportData: BlankScreenReportData = {
+      type: ReportType.WHITE_SCREEN_ERROR,
+      emptyPoints,
+      totalPoints,
+      screenResolution: `${window.screen.width}x${window.screen.height}`,
+      viewPoint: `${width}x${height}`,
+      selector: getSelector(centerElement),
+      pageUrl: window.location.href,
+      appId: options.appId,
+      environment: options.environment,
+      userId: options.getUserId?.() || null,
+      deviceUuid: getDeviceUuid(),
+      reportTime: Date.now(),
+    };
 
-      sendErrorData(reportData, reportUrl);
-    }
-  };
-
-  const doObserverDetect = (): void => {
-    const appElement = document.querySelector('#app') as HTMLElement | null;
-    if (!appElement) {
-      checkGridPoints();
-      return;
-    }
-
-    const observer = new MutationObserver((mutations) => {
-      const hasValidContent =
-        appElement.children.length > 0 &&
-        !appElement.innerHTML.includes('loading') &&
-        !Array.from(appElement.children).every((child) =>
-          wrapperElements.includes(getSelector(child as HTMLElement)),
-        );
-
-      if (hasValidContent) {
-        observer.disconnect();
-        checkGridPoints();
-      }
-    });
-
-    observer.observe(appElement, {
-      childList: true,
-      subtree: true,
-      characterData: true,
-    });
-
-    setTimeout(() => {
-      observer.disconnect();
-      checkGridPoints();
-    }, observerTimeout);
-  };
-
-  if (useObserver) {
-    setTimeout(doObserverDetect, delay);
+    console.warn('[BlankScreen] Detected!', reportData);
+    sendRawData(reportData, options.reportUrl);
   } else {
-    setTimeout(checkGridPoints, delay);
+    console.log(
+      `[BlankScreen] Check passed. Empty rate: ${(emptyPoints / totalPoints).toFixed(2)}`,
+    );
   }
 };
 
-export const BlankScreenPlugin: Plugin = {
-  install(app: App, options: BlankScreenOptions = {}) {
-    window._isFirstLoad = true;
+// ===================== 对外 API =====================
 
-    app.config.globalProperties.$revue = {
-      ...(app.config.globalProperties.$revue as Record<string, any>),
-      blankScreen: (customOptions?: Partial<BlankScreenOptions>) => {
-        blankScreen(
-          { ...options, ...customOptions },
-          {
-            route: options.router?.currentRoute.value || null,
-            scene: window._isFirstLoad ? 'firstLoad' : 'routeChange',
-          },
-        );
-      },
-    };
+/**
+ * 初始化白屏检测
+ *
+ * 原理：
+ * 页面加载完成后（或路由切换后），延迟一段时间（默认3秒），
+ * 在屏幕上进行网格采样（默认5x5=25个点）。
+ * 如果大部分采样点（默认>80%）都落在容器元素（如 body, #app）上，
+ * 而没有覆盖在具体内容元素上，则判定为白屏。
+ */
+export const initBlankScreenMonitor = (options: BlankScreenOptions): void => {
+  if (typeof window === 'undefined') return;
 
-    if (options.router) {
-      options.router.afterEach((to) => {
-        window._routeChangeTime = Date.now();
-        window._isFirstLoad = false;
-        blankScreen(options, {
-          route: to,
-          scene: 'routeChange',
-        });
-      });
+  const { delay = 3000 } = options;
 
-      window.addEventListener('load', () => {
-        blankScreen(options, {
-          route: options.router?.currentRoute.value || null,
-          scene: 'firstLoad',
-        });
-        window._isFirstLoad = false;
-      });
-    }
-  },
+  // 1. 页面加载完成检测
+  if (document.readyState === 'complete') {
+    setTimeout(() => checkBlankScreen(options), delay);
+  } else {
+    window.addEventListener('load', () => {
+      setTimeout(() => checkBlankScreen(options), delay);
+    });
+  }
+
+  // 2. 路由切换检测 (SPA)
+  // 监听 pushState / replaceState / popstate
+  // 注意：这里简单实现，更好的方式是集成在路由守卫中，或者复用 PV 监控的路由监听逻辑
+  const originalPushState = history.pushState;
+  history.pushState = function (...args) {
+    originalPushState.apply(this, args);
+    setTimeout(() => checkBlankScreen(options), delay);
+  };
+
+  const originalReplaceState = history.replaceState;
+  history.replaceState = function (...args) {
+    originalReplaceState.apply(this, args);
+    setTimeout(() => checkBlankScreen(options), delay);
+  };
+
+  window.addEventListener('popstate', () => {
+    setTimeout(() => checkBlankScreen(options), delay);
+  });
 };
-
-// ===================== 类型扩展 =====================
-declare global {
-  interface Window {
-    _isFirstLoad: boolean;
-    _routeChangeTime: number;
-  }
-}
-
-declare module 'vue' {
-  interface ComponentCustomProperties {
-    $revue: {
-      blankScreen: (options?: Partial<BlankScreenOptions>) => void;
-    };
-  }
-}

@@ -7,6 +7,7 @@ import {
   BadRequestException,
   Get,
   Param,
+  Query,
 } from '@nestjs/common';
 import { IsNumber, IsOptional, IsString } from 'class-validator';
 import { MonitorService } from './monitor.service';
@@ -186,6 +187,116 @@ export class MonitorController {
         sourceContent,
         ...originalPosition,
       },
+    };
+  }
+
+  @Get('vitals/:appId')
+  async getVitalsStats(
+    @Param('appId') appId: string,
+    @Query('startTime') startTime?: string,
+    @Query('endTime') endTime?: string,
+  ) {
+    const data = await this.monitorService.getWebVitalsStats(
+      appId,
+      startTime ? Number(startTime) : undefined,
+      endTime ? Number(endTime) : undefined,
+    );
+    return {
+      code: ApiErrorCode.SUCCESS,
+      data,
+      msg: 'Success',
+    };
+  }
+
+  @Get('vitals/:appId/detail/:metricName')
+  async getVitalsPageStats(
+    @Param('appId') appId: string,
+    @Param('metricName') metricName: string,
+    @Query('startTime') startTime?: string,
+    @Query('endTime') endTime?: string,
+  ) {
+    const data = await this.monitorService.getWebVitalsPageStats(
+      appId,
+      metricName,
+      startTime ? Number(startTime) : undefined,
+      endTime ? Number(endTime) : undefined,
+    );
+    return {
+      code: ApiErrorCode.SUCCESS,
+      data,
+      msg: 'Success',
+    };
+  }
+
+  @Get('pv/:appId')
+  async getPVStats(
+    @Param('appId') appId: string,
+    @Query('startTime') startTime?: string,
+    @Query('endTime') endTime?: string,
+  ) {
+    const data = await this.monitorService.getPVStats(
+      appId,
+      startTime ? Number(startTime) : undefined,
+      endTime ? Number(endTime) : undefined,
+    );
+    return {
+      code: ApiErrorCode.SUCCESS,
+      data,
+      msg: 'Success',
+    };
+  }
+
+  @Get('click/:appId')
+  async getClickStats(
+    @Param('appId') appId: string,
+    @Query('startTime') startTime?: string,
+    @Query('endTime') endTime?: string,
+  ) {
+    const data = await this.monitorService.getClickStats(
+      appId,
+      startTime ? Number(startTime) : undefined,
+      endTime ? Number(endTime) : undefined,
+    );
+    return {
+      code: ApiErrorCode.SUCCESS,
+      data,
+      msg: 'Success',
+    };
+  }
+
+  @Get('page-transition/:appId')
+  async getPageTransitionStats(
+    @Param('appId') appId: string,
+    @Query('startTime') startTime?: string,
+    @Query('endTime') endTime?: string,
+  ) {
+    const data = await this.monitorService.getPageTransitionStats(
+      appId,
+      startTime ? Number(startTime) : undefined,
+      endTime ? Number(endTime) : undefined,
+    );
+    return {
+      code: ApiErrorCode.SUCCESS,
+      data,
+      msg: 'Success',
+    };
+  }
+
+  @Get('white-screen/:appId')
+  async getWhiteScreenStats(
+    @Param('appId') appId: string,
+    @Query('startTime') startTime?: string,
+    @Query('endTime') endTime?: string,
+  ) {
+    const data = await this.monitorService.getWhiteScreenStats(
+      appId,
+      startTime ? Number(startTime) : undefined,
+      endTime ? Number(endTime) : undefined,
+    );
+    return {
+      code: ApiErrorCode.SUCCESS,
+      data,
+      msg: 'Success',
     };
   }
 }

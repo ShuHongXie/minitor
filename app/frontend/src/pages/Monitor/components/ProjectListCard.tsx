@@ -8,6 +8,7 @@ const { Paragraph } = Typography;
 interface ProjectListCardProps {
   title?: string;
   errorType?: number;
+  targetPath?: string;
 }
 
 const ProjectListCard: React.FC<ProjectListCardProps> = (props) => {
@@ -15,6 +16,8 @@ const ProjectListCard: React.FC<ProjectListCardProps> = (props) => {
   const errorType =
     props.errorType ?? routeProps?.errorType ?? routeProps?.props?.errorType;
   const title = props.title ?? routeProps?.title ?? routeProps?.props?.title;
+  const targetPath =
+    props.targetPath ?? routeProps?.targetPath ?? routeProps?.props?.targetPath;
 
   const [projects, setProjects] = useState<API.ProjectListItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -36,6 +39,10 @@ const ProjectListCard: React.FC<ProjectListCardProps> = (props) => {
   }, []);
 
   const handleCardClick = (appId: string) => {
+    if (targetPath) {
+      history.push(`${targetPath}/${appId}`);
+      return;
+    }
     // 确保 errorType 存在
     if (errorType === undefined || errorType === null) {
       console.error('errorType is missing');

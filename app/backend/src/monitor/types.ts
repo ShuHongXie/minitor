@@ -15,9 +15,9 @@ export enum ReportType {
   CUSTOM_EVENT = 3,
 
   /**
-   * 用户行为上报
+   * PV 上报
    */
-  USER_BEHAVIOR = 4,
+  PV = 4,
 
   /**
    * 资源错误上报
@@ -33,4 +33,19 @@ export enum ReportType {
    * JS 错误上报
    */
   JAVASCRIPT_ERROR = 7,
+
+  /**
+   * 点击上报
+   */
+  CLICK = 8,
+
+  /**
+   * 页面切换上报
+   */
+  PAGE_TRANSITION = 9,
+
+  /**
+   * 白屏错误上报
+   */
+  WHITE_SCREEN_ERROR = 10,
 }

@@ -78,7 +78,7 @@ const getDeviceUuid = (): string => {
 function buildPVData(duration: number = 0): PVReportData {
   const config = pvConfig!;
   return {
-    type: ReportType.USER_BEHAVIOR,
+    type: ReportType.PV,
     pageUrl: window.location.href.split('#')[0],
     pagePath: window.location.pathname,
     pageTitle: document.title,
