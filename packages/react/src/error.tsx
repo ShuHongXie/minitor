@@ -6,12 +6,15 @@ import {
   extractFirstErrorFile,
   ReportType,
   ErrorType,
+  setSenderConfig,
 } from '@minitrack/core';
-import type { ErrorMonitorConfig } from '@minitrack/core';
+import type { ErrorMonitorConfig, SenderConfig } from '@minitrack/core';
 
 // ===================== 类型定义 =====================
 
-export type ReactErrorMonitorOptions = ErrorMonitorConfig;
+export interface ReactErrorMonitorOptions extends ErrorMonitorConfig {
+  senderConfig?: SenderConfig;
+}
 
 export interface ErrorBoundaryProps {
   /** 监控配置 */
@@ -36,7 +39,7 @@ interface ErrorBoundaryState {
  * @example
  * ```tsx
  * <ErrorBoundary
- *   options={{ reportUrl: '/api/errors', projectName: 'my-app', environment: 'production' }}
+ *   options={{ reportUrl: '/api/errors', appId: 'my-app', environment: 'production' }}
  *   fallback={<div>出错了</div>}
  * >
  *   <App />
@@ -47,6 +50,12 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
   constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false, error: null };
+    // 初始化配置
+    if (props.options.senderConfig) {
+      setSenderConfig(props.options.senderConfig);
+    }
+    // 同时也应该调用 initErrorMonitor 确保核心错误监控被初始化
+    initErrorMonitor(props.options);
   }
 
   static getDerivedStateFromError(error: Error): ErrorBoundaryState {
@@ -63,7 +72,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
         message: formatErrorMessage(error),
         stack,
         errorFilename: extractFirstErrorFile(stack),
-        projectName: options.projectName,
+        appId: options.appId,
         environment: options.environment,
         errorType: ErrorType.REACT_ERROR,
         componentStack: errorInfo.componentStack,
@@ -103,7 +112,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
  * function App() {
  *   useErrorMonitor({
  *     reportUrl: '/api/errors',
- *     projectName: 'my-app',
+ *     appId: 'my-app',
  *     environment: 'production',
  *   })
  *   return <div>...</div>
@@ -112,6 +121,9 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
  */
 export function useErrorMonitor(config: ReactErrorMonitorOptions) {
   React.useEffect(() => {
+    if (config.senderConfig) {
+      setSenderConfig(config.senderConfig);
+    }
     initErrorMonitor(config);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

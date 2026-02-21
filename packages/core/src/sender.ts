@@ -151,7 +151,7 @@ function checkSample(data: Record<string, any>): boolean {
   const isCritical = CONFIG.throttle?.criticalErrors.some((keyword) => message.includes(keyword));
   if (isCritical) return true;
   const randomRate = Math.random();
-  return randomRate <= CONFIG.sampleRate;
+  return randomRate <= (CONFIG.sampleRate ?? 1);
 }
 
 /**
