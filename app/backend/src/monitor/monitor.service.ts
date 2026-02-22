@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { MonitorLog, MonitorLogDocument } from './monitor.schema';
 import { ReportType } from './types';
+import { WecomService } from '../wecom/wecom.service';
 
 interface MonitorItem {
   appId: string;
@@ -27,7 +28,10 @@ interface MonitorItem {
 
 @Injectable()
 export class MonitorService {
-  constructor(@InjectModel(MonitorLog.name) private monitorLogModel: Model<MonitorLogDocument>) {}
+  constructor(
+    @InjectModel(MonitorLog.name) private monitorLogModel: Model<MonitorLogDocument>,
+    private readonly wecomService: WecomService,
+  ) {}
 
   async processAndSave(items: any[]): Promise<void> {
     const logs = items.map((item: MonitorItem) => this.transformToLog(item));
@@ -35,7 +39,44 @@ export class MonitorService {
 
     if (logs.length > 0) {
       await this.monitorLogModel.insertMany(logs);
+
+      // Send error notifications to WeCom
+      for (const log of logs) {
+        if (
+          log.type &&
+          [
+            ReportType.ERROR,
+            ReportType.RESOURCE_ERROR,
+            ReportType.NETWORK_ERROR,
+            ReportType.JAVASCRIPT_ERROR,
+            ReportType.WHITE_SCREEN_ERROR,
+          ].includes(log.type)
+        ) {
+          await this.sendErrorNotification(log);
+        }
+      }
     }
+  }
+
+  private async sendErrorNotification(log: Partial<MonitorLog>) {
+    const typeName = log.type ? ReportType[log.type] : 'UNKNOWN_ERROR';
+    const time = new Date(log.timestamp || Date.now()).toLocaleString();
+    const pageUrl = log.data?.pageUrl || 'N/A';
+
+    const content = `
+<font color="warning">Monitor Error Alert</font>
+>App: <font color="comment">${log.appId}</font>
+>Type: <font color="comment">${typeName}</font>
+>User: <font color="comment">${log.userId || 'Anonymous'}</font>
+>Page: <font color="comment">${pageUrl}</font>
+>Time: <font color="comment">${time}</font>
+
+**Error Details:**
+\`\`\`json
+${JSON.stringify(log.data, null, 2)}
+\`\`\`
+    `;
+    await this.wecomService.sendMarkdown(content);
   }
 
   async findAll(params: {
